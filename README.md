@@ -54,33 +54,4 @@ If you want to integrate the optimizer with automated scripting pipelines or pri
     cargo run --release -- --help
     ```
 
----
 
-## Loading the Complete Interactive Map Data (SCIM Extract)
-
-If you want to run the optimizer on the **complete, 100% updated Satisfactory 1.0 game map data** from [Satisfactory Calculator (SCIM)](https://satisfactory-calculator.com/en/interactive-map):
-
-### Step 1: Download the SCIM Data
-1. Open your browser and go to the [SCIM Interactive Map](https://satisfactory-calculator.com/en/interactive-map).
-2. Open **Developer Tools** (F12 or `Ctrl+Shift+I` / `Cmd+Option+I`).
-3. Go to the **Network** tab and select **Fetch/XHR**.
-4. In the filter box, type `mongo` or `nodes`.
-5. Reload the map page (or toggle the resource filters on the sidebar).
-6. Look for a network request similar to `https://satisfactory-calculator.com/en/interactive-map/index/mongo` or CDN endpoints loading markers.
-7. Right-click the request and select **Copy** -> **Copy Response**.
-8. Paste the copied response into a text file at `data/raw_scim_nodes.json`.
-
-### Step 2: Format the Data for the Optimizer
-We provided a Python helper utility to convert the raw Leaflet markers format from SCIM into a flat JSON format ready for Rust.
-
-Run the script:
-```bash
-python scratch/scim_parser.py data/raw_scim_nodes.json data/scim_nodes.json
-```
-
-### Step 3: Run the Optimizer on the Complete Map
-Run the Rust engine on the full formatted database:
-```bash
-cargo run --release -- --file data/scim_nodes.json
-```
-This allows you to calculate the absolute optimal global coordinate across the entire updated game map based on whatever resource combinations you prioritize!
