@@ -57,7 +57,8 @@ struct TuiState {
     sigma: f64,
     preset_idx: usize,
     purity_override: PurityOverride,
-    selected_option: usize, // 0 = Preset, 1 = Purity, 2 = Sigma, 3..23 = weights, 24 = Run button
+    search_strategy: models::SearchStrategy,
+    selected_option: usize, // 0 = Preset, 1 = Purity, 2 = Strategy, 3 = Sigma, 4..24 = weights, 25 = Run button
     checklist_scroll_top: usize,
     opt_result: Option<optimizer::OptimizationResult>,
     status_msg: String,
@@ -311,6 +312,7 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
         sigma: initial_config.sigma,
         preset_idx: initial_preset_idx,
         purity_override: initial_config.purity_override,
+        search_strategy: initial_config.strategy,
         selected_option: 0,
         checklist_scroll_top: 0,
         opt_result: None,
@@ -336,6 +338,7 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
         config.sigma = state.sigma;
         config.weights = weights.clone();
         config.purity_override = state.purity_override;
+        config.strategy = state.search_strategy;
         let start_time = std::time::Instant::now();
         let result = optimizer::optimize(nodes, &config);
         let duration = start_time.elapsed();
@@ -381,13 +384,24 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
             ]));
             left_lines.push(Line::from(""));
 
-            let sigma_style = if state.selected_option == 2 {
+            let strategy_style = if state.selected_option == 2 {
                 Style::default().fg(Color::Rgb(255, 152, 0)).add_modifier(Modifier::BOLD)
             } else {
                 Style::default()
             };
             left_lines.push(Line::from(vec![
                 Span::raw(if state.selected_option == 2 { "> " } else { "  " }),
+                Span::styled(format!("Strategy: < {} >", state.search_strategy.to_str()), strategy_style),
+            ]));
+            left_lines.push(Line::from(""));
+
+            let sigma_style = if state.selected_option == 3 {
+                Style::default().fg(Color::Rgb(255, 152, 0)).add_modifier(Modifier::BOLD)
+            } else {
+                Style::default()
+            };
+            left_lines.push(Line::from(vec![
+                Span::raw(if state.selected_option == 3 { "> " } else { "  " }),
                 Span::styled(format!("Radius: < {} meters >", state.sigma), sigma_style),
             ]));
             left_lines.push(Line::from(""));
@@ -397,14 +411,14 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
 
             // 2. Checklist Section (Scrollable viewport inside Left Column)
             let height = chunks[0].height as usize;
-            let max_visible = (height.saturating_sub(18)).max(1);
+            let max_visible = (height.saturating_sub(20)).max(1);
             
             let end_idx = (state.checklist_scroll_top + max_visible).min(CONFIGURABLE_RESOURCES.len());
             for idx in state.checklist_scroll_top..end_idx {
                 let res = CONFIGURABLE_RESOURCES[idx];
                 let val = *weights.get(res).unwrap_or(&0.0);
                 
-                let is_focused = state.selected_option == 3 + idx;
+                let is_focused = state.selected_option == 4 + idx;
                 let is_enabled = val != 0.0;
                 
                 let checkbox = if is_enabled {
@@ -475,14 +489,14 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
             left_lines.push(Line::from("─".repeat(46)));
 
             // 3. Run Optimization Button
-            let run_style = if state.selected_option == 24 {
+            let run_style = if state.selected_option == 25 {
                 Style::default().bg(Color::Rgb(50, 205, 50)).fg(Color::Black).add_modifier(Modifier::BOLD)
             } else {
                 Style::default().fg(Color::Rgb(50, 205, 50))
             };
             left_lines.push(Line::from(""));
             left_lines.push(Line::from(vec![
-                Span::raw(if state.selected_option == 24 { "> " } else { "  " }),
+                Span::raw(if state.selected_option == 25 { "> " } else { "  " }),
                 Span::styled("   [ RUN OPTIMIZATION ENGINE ]   ", run_style),
             ]));
             left_lines.push(Line::from(""));
@@ -638,8 +652,8 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                             state.selected_option -= 1;
                             
                             // Adjust scroll top if focused on checklist
-                            if state.selected_option >= 3 && state.selected_option <= 23 {
-                                let item_idx = state.selected_option - 3;
+                            if state.selected_option >= 4 && state.selected_option <= 24 {
+                                let item_idx = state.selected_option - 4;
                                 if item_idx < state.checklist_scroll_top {
                                     state.checklist_scroll_top = item_idx;
                                 }
@@ -647,13 +661,13 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                         }
                     }
                     KeyCode::Down => {
-                        if state.selected_option < 24 {
+                        if state.selected_option < 25 {
                             state.selected_option += 1;
                             
                             // Adjust scroll top if focused on checklist
-                            if state.selected_option >= 3 && state.selected_option <= 23 {
-                                let item_idx = state.selected_option - 3;
-                                let max_visible = (layout_chunks[0].height as usize).saturating_sub(18).max(1);
+                            if state.selected_option >= 4 && state.selected_option <= 24 {
+                                let item_idx = state.selected_option - 4;
+                                let max_visible = (layout_chunks[0].height as usize).saturating_sub(20).max(1);
                                 if max_visible > 0 && item_idx >= state.checklist_scroll_top + max_visible {
                                     state.checklist_scroll_top = item_idx + 1 - max_visible;
                                 }
@@ -681,11 +695,24 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                             }
                             state.purity_override = modes[curr_idx];
                         } else if state.selected_option == 2 {
+                            let strategies = [
+                                models::SearchStrategy::Hybrid,
+                                models::SearchStrategy::Fast,
+                                models::SearchStrategy::Slow,
+                            ];
+                            let mut curr_idx = strategies.iter().position(|&s| s == state.search_strategy).unwrap_or(0);
+                            if curr_idx > 0 {
+                                curr_idx -= 1;
+                            } else {
+                                curr_idx = 2;
+                            }
+                            state.search_strategy = strategies[curr_idx];
+                        } else if state.selected_option == 3 {
                             if state.sigma > 150.0 {
                                 state.sigma -= 50.0;
                             }
-                        } else if state.selected_option >= 3 && state.selected_option <= 23 {
-                            let res_name = CONFIGURABLE_RESOURCES[state.selected_option - 3];
+                        } else if state.selected_option >= 4 && state.selected_option <= 24 {
+                            let res_name = CONFIGURABLE_RESOURCES[state.selected_option - 4];
                             let val = weights.entry(res_name.to_string()).or_insert(0.0);
                             *val = (*val - 0.1).clamp(-10.0, 10.0);
                             *val = (*val * 10.0).round() / 10.0;
@@ -715,11 +742,24 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                             }
                             state.purity_override = modes[curr_idx];
                         } else if state.selected_option == 2 {
+                            let strategies = [
+                                models::SearchStrategy::Hybrid,
+                                models::SearchStrategy::Fast,
+                                models::SearchStrategy::Slow,
+                            ];
+                            let mut curr_idx = strategies.iter().position(|&s| s == state.search_strategy).unwrap_or(0);
+                            if curr_idx < 2 {
+                                curr_idx += 1;
+                            } else {
+                                curr_idx = 0;
+                            }
+                            state.search_strategy = strategies[curr_idx];
+                        } else if state.selected_option == 3 {
                             if state.sigma < 1500.0 {
                                 state.sigma += 50.0;
                             }
-                        } else if state.selected_option >= 3 && state.selected_option <= 23 {
-                            let res_name = CONFIGURABLE_RESOURCES[state.selected_option - 3];
+                        } else if state.selected_option >= 4 && state.selected_option <= 24 {
+                            let res_name = CONFIGURABLE_RESOURCES[state.selected_option - 4];
                             let val = weights.entry(res_name.to_string()).or_insert(0.0);
                             *val = (*val + 0.1).clamp(-10.0, 10.0);
                             *val = (*val * 10.0).round() / 10.0;
@@ -729,8 +769,8 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                         }
                     }
                     KeyCode::Char(' ') => {
-                        if state.selected_option >= 3 && state.selected_option <= 23 {
-                            let res_name = CONFIGURABLE_RESOURCES[state.selected_option - 3];
+                        if state.selected_option >= 4 && state.selected_option <= 24 {
+                            let res_name = CONFIGURABLE_RESOURCES[state.selected_option - 4];
                             let val = weights.entry(res_name.to_string()).or_insert(0.0);
                             if *val == 0.0 {
                                 let restored = last_nonzero_weights.get(res_name).copied().unwrap_or_else(|| default_nonzero_weight(res_name));
@@ -742,7 +782,7 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                         }
                     }
                     KeyCode::Enter => {
-                        if state.selected_option == 24 {
+                        if state.selected_option == 25 {
                             state.status_msg = "Running mathematical solver...".to_string();
                             
                             // Re-draw once to update the status message
@@ -764,6 +804,7 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                             config.sigma = state.sigma;
                             config.weights = weights.clone();
                             config.purity_override = state.purity_override;
+                            config.strategy = state.search_strategy;
 
                             let start_time = std::time::Instant::now();
                             let result = optimizer::optimize(nodes, &config);
@@ -799,6 +840,8 @@ Options:
                        Select game phase preset for non-interactive mode.
   --purity <default|impure|normal|pure>
                        Override database node purity multipliers (default: default)
+  --strategy <hybrid|fast|slow>
+                       Select search algorithm strategy (default: hybrid)
   --collectibles       Focus search purely on slugs, drop pods, and alien artifacts
   --json               Output only raw JSON configuration and results
   --<resource> <w>     Dynamic weight of any resource type (e.g. --iron 1.5, --uranium -2.0)
@@ -856,6 +899,19 @@ fn main() {
                     i += 2;
                 } else {
                     eprintln!("Error: --purity requires a value");
+                    return;
+                }
+            }
+            "--strategy" => {
+                if i + 1 < args.len() {
+                    config.strategy = match args[i + 1].to_lowercase().as_str() {
+                        "fast" => models::SearchStrategy::Fast,
+                        "slow" => models::SearchStrategy::Slow,
+                        _ => models::SearchStrategy::Hybrid,
+                    };
+                    i += 2;
+                } else {
+                    eprintln!("Error: --strategy requires a value");
                     return;
                 }
             }

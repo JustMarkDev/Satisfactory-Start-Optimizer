@@ -452,13 +452,21 @@ fn run_hill_climbing(
 
 /// Runs a global high-resolution grid search to find candidate basins, identifies
 /// all local maxima, then runs parallelized hill climbing on the top 50 candidates.
-pub fn optimize(nodes: &[ResourceNode], config: &OptimizerConfig) -> OptimizationResult {
-    // 1. Map resource types to indices dynamically
+struct SearchContext {
+    opt_nodes: Vec<OptNode>,
+    spatial_grid: SpatialGrid,
+    num_resources: usize,
+    weights_arr: Vec<f64>,
+    epsilons_arr: Vec<f64>,
+    res_to_idx: HashMap<String, usize>,
+    waterwell_idx: Option<usize>,
+}
+
+fn prepare_context(nodes: &[ResourceNode], config: &OptimizerConfig) -> SearchContext {
     let mut unique_types: Vec<String> = nodes.iter().map(|n| n.resource_type.clone()).collect();
     for res_name in config.weights.keys() {
         unique_types.push(res_name.clone());
     }
-    // Explicitly add "water" resource key if present in weights but not nodes
     if config.weights.contains_key("water") {
         unique_types.push("water".to_string());
     }
@@ -490,7 +498,6 @@ pub fn optimize(nodes: &[ResourceNode], config: &OptimizerConfig) -> Optimizatio
         };
     }
 
-    // Convert ResourceNode to OptNode for cache-friendly execution
     let opt_nodes: Vec<OptNode> = nodes
         .iter()
         .map(|n| {
@@ -510,12 +517,27 @@ pub fn optimize(nodes: &[ResourceNode], config: &OptimizerConfig) -> Optimizatio
         })
         .collect();
 
-    // 2. Build Spatial Grid (Bucket size = 1000m = 100,000 cm)
     let spatial_grid = SpatialGrid::new(&opt_nodes, 100000.0);
     let waterwell_idx = res_to_idx.get("waterwell").copied();
 
-    // 3. Grid Search: Check 500x500 points (250,000 points checked every ~14.8 meters)
-    let grid_res = 500;
+    SearchContext {
+        opt_nodes,
+        spatial_grid,
+        num_resources,
+        weights_arr,
+        epsilons_arr,
+        res_to_idx,
+        waterwell_idx,
+    }
+}
+
+fn grid_search_refine(
+    ctx: &SearchContext,
+    config: &OptimizerConfig,
+    grid_res: usize,
+    min_dist_between_starts: f64,
+    max_candidates: usize,
+) -> OptimizationResult {
     let step_x = (MAX_X - MIN_X) / grid_res as f64;
     let step_y = (MAX_Y - MIN_Y) / grid_res as f64;
 
@@ -529,26 +551,24 @@ pub fn optimize(nodes: &[ResourceNode], config: &OptimizerConfig) -> Optimizatio
         })
         .collect();
 
-    // Evaluate all grid points in parallel
     let scores: Vec<f64> = grid_points
         .into_par_iter()
         .map(|(x, y)| {
             calculate_utility(
                 x,
                 y,
-                &opt_nodes,
-                &spatial_grid,
+                &ctx.opt_nodes,
+                &ctx.spatial_grid,
                 config,
-                num_resources,
-                &weights_arr,
-                &epsilons_arr,
-                &res_to_idx,
-                waterwell_idx,
+                ctx.num_resources,
+                &ctx.weights_arr,
+                &ctx.epsilons_arr,
+                &ctx.res_to_idx,
+                ctx.waterwell_idx,
             )
         })
         .collect();
 
-    // 4. Find all local maxima in the grid sequentially
     let rows = grid_res + 1;
     let cols = grid_res + 1;
     
@@ -591,12 +611,9 @@ pub fn optimize(nodes: &[ResourceNode], config: &OptimizerConfig) -> Optimizatio
         }
     }
 
-    // Sort local maxima descending by score
     let mut sorted_maxima = local_maxima;
     sorted_maxima.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap_or(std::cmp::Ordering::Equal));
 
-    // Choose top local maxima candidates
-    let min_dist_between_starts = 300.0 * 100.0; // 300 meters
     let mut start_candidates: Vec<(f64, f64, f64)> = Vec::new();
 
     for (x, y, score) in sorted_maxima {
@@ -608,34 +625,97 @@ pub fn optimize(nodes: &[ResourceNode], config: &OptimizerConfig) -> Optimizatio
 
         if is_far_enough {
             start_candidates.push((x, y, score));
-            if start_candidates.len() >= 50 {
+            if start_candidates.len() >= max_candidates {
                 break;
             }
         }
     }
 
-    // 5. Refine all top candidates in parallel using hill climbing
     let refined_results: Vec<OptimizationResult> = start_candidates
         .into_par_iter()
         .map(|(start_x, start_y, _)| {
             run_hill_climbing(
                 start_x,
                 start_y,
-                &opt_nodes,
-                &spatial_grid,
+                &ctx.opt_nodes,
+                &ctx.spatial_grid,
                 config,
-                num_resources,
-                &weights_arr,
-                &epsilons_arr,
-                &res_to_idx,
-                waterwell_idx,
+                ctx.num_resources,
+                &ctx.weights_arr,
+                &ctx.epsilons_arr,
+                &ctx.res_to_idx,
+                ctx.waterwell_idx,
             )
         })
         .collect();
 
-    // 6. Select the absolute best refined peak
     refined_results
         .into_iter()
         .max_by(|a, b| a.score.partial_cmp(&b.score).unwrap_or(std::cmp::Ordering::Equal))
         .expect("No candidates optimized successfully")
+}
+
+fn optimize_hybrid(ctx: &SearchContext, config: &OptimizerConfig) -> OptimizationResult {
+    let grid_res = 500;
+    let min_dist_between_starts = 300.0 * 100.0;
+    let max_candidates = 50;
+    grid_search_refine(ctx, config, grid_res, min_dist_between_starts, max_candidates)
+}
+
+fn optimize_slow(ctx: &SearchContext, config: &OptimizerConfig) -> OptimizationResult {
+    let grid_res = 1000;
+    let min_dist_between_starts = 200.0 * 100.0;
+    let max_candidates = 100;
+    grid_search_refine(ctx, config, grid_res, min_dist_between_starts, max_candidates)
+}
+
+fn optimize_fast(ctx: &SearchContext, config: &OptimizerConfig) -> OptimizationResult {
+    let mut starts = Vec::new();
+    
+    for spawn in DEFAULT_SPAWNS {
+        starts.push((spawn.x, spawn.y));
+    }
+    
+    let steps = 4;
+    let step_x = (MAX_X - MIN_X) / (steps + 1) as f64;
+    let step_y = (MAX_Y - MIN_Y) / (steps + 1) as f64;
+    for i in 1..=steps {
+        let x = MIN_X + i as f64 * step_x;
+        for j in 1..=steps {
+            let y = MIN_Y + j as f64 * step_y;
+            starts.push((x, y));
+        }
+    }
+    
+    let refined_results: Vec<OptimizationResult> = starts
+        .into_par_iter()
+        .map(|(start_x, start_y)| {
+            run_hill_climbing(
+                start_x,
+                start_y,
+                &ctx.opt_nodes,
+                &ctx.spatial_grid,
+                config,
+                ctx.num_resources,
+                &ctx.weights_arr,
+                &ctx.epsilons_arr,
+                &ctx.res_to_idx,
+                ctx.waterwell_idx,
+            )
+        })
+        .collect();
+
+    refined_results
+        .into_iter()
+        .max_by(|a, b| a.score.partial_cmp(&b.score).unwrap_or(std::cmp::Ordering::Equal))
+        .expect("No candidates optimized successfully")
+}
+
+pub fn optimize(nodes: &[ResourceNode], config: &OptimizerConfig) -> OptimizationResult {
+    let ctx = prepare_context(nodes, config);
+    match config.strategy {
+        crate::models::SearchStrategy::Hybrid => optimize_hybrid(&ctx, config),
+        crate::models::SearchStrategy::Fast => optimize_fast(&ctx, config),
+        crate::models::SearchStrategy::Slow => optimize_slow(&ctx, config),
+    }
 }

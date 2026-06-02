@@ -221,10 +221,29 @@ pub static DEFAULT_SPAWNS: &[SpawnLocation] = &[
     },
 ];
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum SearchStrategy {
+    Hybrid,
+    Fast,
+    Slow,
+}
+
+impl SearchStrategy {
+    pub fn to_str(self) -> &'static str {
+        match self {
+            SearchStrategy::Hybrid => "Hybrid (recommended)",
+            SearchStrategy::Fast => "Multi-Start (fast but less accurate)",
+            SearchStrategy::Slow => "High-Res (slow but accurate)",
+        }
+    }
+}
+
 pub struct OptimizerConfig {
     pub sigma: f64, // Effective walking distance in meters
     pub weights: HashMap<String, f64>,
     pub purity_override: PurityOverride,
+    pub strategy: SearchStrategy,
 }
 
 impl Default for OptimizerConfig {
@@ -254,6 +273,7 @@ impl Default for OptimizerConfig {
             sigma: 600.0,
             weights,
             purity_override: PurityOverride::Default,
+            strategy: SearchStrategy::Hybrid,
         }
     }
 }
