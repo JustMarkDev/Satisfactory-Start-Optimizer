@@ -24,6 +24,7 @@ struct OptNode {
     z: f64,
     res_idx: usize,
     multiplier: f64,
+    obstructed: bool,
 }
 
 struct SpatialGrid {
@@ -111,6 +112,11 @@ fn distance_to_nearest_water(x: f64, y: f64, opt_nodes: &[OptNode], waterwell_id
     } else {
         min_dist_cm = min_dist_cm.min(380000.0 - x);
     }
+    if y > 370000.0 {
+        min_dist_cm = min_dist_cm.min(0.0);
+    } else {
+        min_dist_cm = min_dist_cm.min(370000.0 - y);
+    }
     
     let mut min_dist_m = min_dist_cm / 100.0;
     
@@ -131,26 +137,18 @@ fn distance_to_nearest_water(x: f64, y: f64, opt_nodes: &[OptNode], waterwell_id
     min_dist_m
 }
 
-/// Calculates the dynamic multi-resource Cobb-Douglas utility function at a coordinate (x, y)
-/// using spatial grid bucketing, KNN elevation, terrain flatness, water proximity, and radiation.
-fn calculate_utility(
+/// Estimates the ground altitude Z at a coordinate (x, y) using KNN IDW (Inverse Distance Weighting)
+fn estimate_altitude(
     x: f64,
     y: f64,
     opt_nodes: &[OptNode],
     spatial_grid: &SpatialGrid,
-    config: &OptimizerConfig,
-    num_resources: usize,
-    weights_arr: &[f64],
-    epsilons_arr: &[f64],
-    res_to_idx: &HashMap<String, usize>,
-    waterwell_idx: Option<usize>,
+    sigma: f64,
 ) -> f64 {
-    let radius = 3.5 * config.sigma;
+    let radius = 3.5 * sigma;
     let radius_cm = radius * 100.0;
     let radius_cm_sq = radius_cm * radius_cm;
-    let radius_m_sq = radius * radius;
 
-    // 1. KNN IDW Ground Height Estimation (Top 6 nearest nodes horizontally)
     let mut nearest = [(f64::MAX, 0.0); 6]; // (dist_sq, z)
     let mut count = 0;
 
@@ -191,7 +189,7 @@ fn calculate_utility(
         }
     }
 
-    let z = if count > 0 {
+    if count > 0 {
         let mut total_weight = 0.0;
         let mut weighted_z = 0.0;
         for i in 0..count {
@@ -203,15 +201,50 @@ fn calculate_utility(
         weighted_z / total_weight
     } else {
         0.0
-    };
+    }
+}
+
+/// Calculates the dynamic multi-resource Cobb-Douglas utility function at a coordinate (x, y)
+/// using spatial grid bucketing, KNN elevation, terrain flatness, water proximity, and radiation.
+fn calculate_utility(
+    x: f64,
+    y: f64,
+    opt_nodes: &[OptNode],
+    spatial_grid: &SpatialGrid,
+    config: &OptimizerConfig,
+    num_resources: usize,
+    weights_arr: &[f64],
+    epsilons_arr: &[f64],
+    res_to_idx: &HashMap<String, usize>,
+    waterwell_idx: Option<usize>,
+) -> f64 {
+    let radius = 3.5 * config.sigma;
+    let radius_cm = radius * 100.0;
+    let radius_m_sq = radius * radius;
+
+    let min_qx = x - radius_cm;
+    let max_qx = x + radius_cm;
+    let min_qy = y - radius_cm;
+    let max_qy = y + radius_cm;
+
+    let col_start = (((min_qx - spatial_grid.min_x) / spatial_grid.bucket_size) as isize).clamp(0, spatial_grid.cols as isize - 1) as usize;
+    let col_end = (((max_qx - spatial_grid.min_x) / spatial_grid.bucket_size) as isize).clamp(0, spatial_grid.cols as isize - 1) as usize;
+    let row_start = (((min_qy - spatial_grid.min_y) / spatial_grid.bucket_size) as isize).clamp(0, spatial_grid.rows as isize - 1) as usize;
+    let row_end = (((max_qy - spatial_grid.min_y) / spatial_grid.bucket_size) as isize).clamp(0, spatial_grid.rows as isize - 1) as usize;
+
+    // 1. KNN IDW Ground Height Estimation
+    let z = estimate_altitude(x, y, opt_nodes, spatial_grid, config.sigma);
 
     // 2. Sum yields for all resource types & collect local heights for terrain flatness
-    let mut yields = [0.0; 32];
+    let mut yields = [0.0; 128];
 
     let build_radius = 1.5 * config.sigma; // factory building area footprint
     let build_radius_m_sq = build_radius * build_radius;
-    let mut local_heights = [0.0; 64];
+    
+    // Welford's algorithm variables for online variance calculation
     let mut heights_count = 0;
+    let mut heights_mean = 0.0;
+    let mut heights_m2 = 0.0;
 
     for r_idx in row_start..=row_end {
         for c_idx in col_start..=col_end {
@@ -236,13 +269,22 @@ fn calculate_utility(
                         crate::models::DistanceDecay::PowerLaw => 1.0 / (d / config.sigma + 1.0),
                         crate::models::DistanceDecay::Linear => (1.0 - d / config.sigma).max(0.0),
                     };
-                    let contribution = node.multiplier * decay;
+                    let mut contribution = node.multiplier * decay;
+                    
+                    // Obstructed nodes are locked behind Nobelisk explosives (Phase 1 & 2)
+                    if node.obstructed && (config.game_phase == crate::models::GamePhase::Phase1 || config.game_phase == crate::models::GamePhase::Phase2) {
+                        contribution = 0.0;
+                    }
+                    
                     yields[node.res_idx] += contribution;
 
-                    // Keep track of nearby heights to measure slope variance (terrain flatness)
-                    if d_sq <= build_radius_m_sq && heights_count < 64 {
-                        local_heights[heights_count] = node.z;
+                    // Keep track of nearby heights using Welford's algorithm
+                    if d_sq <= build_radius_m_sq {
                         heights_count += 1;
+                        let delta = node.z - heights_mean;
+                        heights_mean += delta / heights_count as f64;
+                        let delta2 = node.z - heights_mean;
+                        heights_m2 += delta * delta2;
                     }
                 }
             }
@@ -267,18 +309,7 @@ fn calculate_utility(
     // 3. Terrain Flatness Penalty (Standard Deviation of local ground heights)
     let mut flatness_mult = 1.0;
     if heights_count > 1 {
-        let mut sum = 0.0;
-        for i in 0..heights_count {
-            sum += local_heights[i];
-        }
-        let mean = sum / heights_count as f64;
-        
-        let mut variance_sum = 0.0;
-        for i in 0..heights_count {
-            let diff = local_heights[i] - mean;
-            variance_sum += diff * diff;
-        }
-        let std_dev_cm = (variance_sum / heights_count as f64).sqrt();
+        let std_dev_cm = (heights_m2 / heights_count as f64).sqrt();
         let std_dev_m = std_dev_cm / 100.0;
         
         // Penalize variance exponentially; scaling denominator of 40 meters standard deviation.
@@ -420,63 +451,7 @@ fn run_hill_climbing(
     }
 
     // Re-estimate final base altitude Z using KNN IDW
-    let radius = 3.5 * config.sigma;
-    let radius_cm = radius * 100.0;
-    let radius_cm_sq = radius_cm * radius_cm;
-    
-    let mut nearest = [(f64::MAX, 0.0); 6];
-    let mut count = 0;
-
-    let min_qx = curr_x - radius_cm;
-    let max_qx = curr_x + radius_cm;
-    let min_qy = curr_y - radius_cm;
-    let max_qy = curr_y + radius_cm;
-
-    let col_start = (((min_qx - spatial_grid.min_x) / spatial_grid.bucket_size) as isize).clamp(0, spatial_grid.cols as isize - 1) as usize;
-    let col_end = (((max_qx - spatial_grid.min_x) / spatial_grid.bucket_size) as isize).clamp(0, spatial_grid.cols as isize - 1) as usize;
-    let row_start = (((min_qy - spatial_grid.min_y) / spatial_grid.bucket_size) as isize).clamp(0, spatial_grid.rows as isize - 1) as usize;
-    let row_end = (((max_qy - spatial_grid.min_y) / spatial_grid.bucket_size) as isize).clamp(0, spatial_grid.rows as isize - 1) as usize;
-
-    for r_idx in row_start..=row_end {
-        for c_idx in col_start..=col_end {
-            let bucket_idx = r_idx * spatial_grid.cols + c_idx;
-            for &node_idx in &spatial_grid.buckets[bucket_idx] {
-                let node = &opt_nodes[node_idx];
-                let dx = curr_x - node.x;
-                let dy = curr_y - node.y;
-                let dist_sq = dx * dx + dy * dy;
-                if dist_sq <= radius_cm_sq {
-                    if dist_sq < nearest[5].0 {
-                        let mut insert_pos = 5;
-                        while insert_pos > 0 && dist_sq < nearest[insert_pos - 1].0 {
-                            insert_pos -= 1;
-                        }
-                        for idx in (insert_pos + 1..6).rev() {
-                            nearest[idx] = nearest[idx - 1];
-                        }
-                        nearest[insert_pos] = (dist_sq, node.z);
-                        if count < 6 {
-                            count += 1;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    let final_z = if count > 0 {
-        let mut total_weight = 0.0;
-        let mut weighted_z = 0.0;
-        for i in 0..count {
-            let dist_m = nearest[i].0.sqrt() / 100.0;
-            let w = 1.0 / ((dist_m + 10.0) * (dist_m + 10.0));
-            weighted_z += nearest[i].1 * w;
-            total_weight += w;
-        }
-        weighted_z / total_weight
-    } else {
-        0.0
-    };
+    let final_z = estimate_altitude(curr_x, curr_y, opt_nodes, spatial_grid, config.sigma);
 
     // Find closest starting spawn point
     let mut closest_spawn = DEFAULT_SPAWNS[0].clone();
@@ -531,7 +506,7 @@ fn prepare_context(nodes: &[ResourceNode], config: &OptimizerConfig) -> SearchCo
     }
     
     let num_resources = unique_types.len();
-    assert!(num_resources <= 32, "Too many resource types (max 32 supported by fixed array)");
+    assert!(num_resources <= 128, "Too many resource types (max 128 supported by fixed array)");
 
     let mut weights_arr = vec![0.0; num_resources];
     for (res_name, &weight) in &config.weights {
@@ -559,12 +534,26 @@ fn prepare_context(nodes: &[ResourceNode], config: &OptimizerConfig) -> SearchCo
                 crate::models::PurityOverride::Normal => 1.0,
                 crate::models::PurityOverride::Pure => 2.0,
             };
+            let mut obstructed = n.obstructed;
+            
+            // --- TEMPORARY HEURISTIC FOR UN-SAVED DEFAULT DATABASE OBSTRUCTIONS ---
+            // To easily remove this later, just delete this block and set `obstructed = n.obstructed`.
+            if !obstructed && n.resource_type == "caterium" {
+                // Keep only the starting Rocky Desert Caterium node open (near x = -2200m, y = -1500m)
+                let is_starting_caterium = (n.x - (-220000.0)).abs() < 50000.0 && (n.y - (-150000.0)).abs() < 50000.0;
+                if !is_starting_caterium {
+                    obstructed = true;
+                }
+            }
+            // ----------------------------------------------------------------------
+
             OptNode {
                 x: n.x,
                 y: n.y,
                 z: n.z,
                 res_idx: *res_to_idx.get(&n.resource_type).unwrap(),
                 multiplier,
+                obstructed,
             }
         })
         .collect();

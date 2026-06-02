@@ -5,6 +5,8 @@ mod optimizer;
 use models::{GamePhase, OptimizerConfig, PurityOverride};
 use std::collections::HashMap;
 use std::env;
+use std::sync::mpsc;
+use std::thread;
 
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
@@ -305,6 +307,20 @@ fn draw_ascii_map(
     lines
 }
 
+struct RawModeGuard;
+
+impl Drop for RawModeGuard {
+    fn drop(&mut self) {
+        let _ = disable_raw_mode();
+        let _ = execute!(
+            std::io::stdout(),
+            LeaveAlternateScreen,
+            DisableMouseCapture,
+            crossterm::cursor::Show
+        );
+    }
+}
+
 fn run_tui(
     nodes: &[models::ResourceNode],
     file_info: String,
@@ -314,27 +330,18 @@ fn run_tui(
     enable_raw_mode()?;
     let mut stdout = std::io::stdout();
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+    let _guard = RawModeGuard;
+    
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let app_result = run_tui_loop(
+    run_tui_loop(
         &mut terminal,
         nodes,
         file_info,
         initial_config,
         initial_preset_idx,
-    );
-
-    // Clean up raw mode alternate screen
-    disable_raw_mode()?;
-    execute!(
-        terminal.backend_mut(),
-        LeaveAlternateScreen,
-        DisableMouseCapture
-    )?;
-    terminal.show_cursor()?;
-
-    app_result
+    )
 }
 
 fn run_tui_loop<B: ratatui::backend::Backend>(
@@ -344,6 +351,9 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
     initial_config: OptimizerConfig,
     initial_preset_idx: usize,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let run_button_index = 6 + CONFIGURABLE_RESOURCES.len();
+    let max_weight_option_index = 6 + CONFIGURABLE_RESOURCES.len() - 1;
+
     let mut state = TuiState {
         sigma: initial_config.sigma,
         preset_idx: initial_preset_idx,
@@ -370,6 +380,11 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
         }
     }
 
+    let mut solving_rx: Option<mpsc::Receiver<optimizer::OptimizationResult>> = None;
+    let mut solve_start_time: Option<std::time::Instant> = None;
+    let mut spinner_frame = 0;
+    const SPINNER_CHARS: &[char] = &['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+
     // Run initial optimization so map is immediately populated
     {
         let mut config = OptimizerConfig::default();
@@ -379,6 +394,14 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
         config.strategy = state.search_strategy;
         config.utility_func = state.utility_func;
         config.decay_func = state.decay_func;
+        config.game_phase = match state.preset_idx {
+            0 => GamePhase::Phase1,
+            1 => GamePhase::Phase2,
+            2 => GamePhase::Phase3,
+            3 => GamePhase::Phase4,
+            4 => GamePhase::Phase5,
+            _ => GamePhase::Phase1,
+        };
         let start_time = std::time::Instant::now();
         let result = optimizer::optimize(nodes, &config);
         let duration = start_time.elapsed();
@@ -387,6 +410,31 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
     }
 
     loop {
+        // Handle background solver messages and tick the loading spinner
+        if solving_rx.is_some() {
+            spinner_frame += 1;
+            let mut finished_result = None;
+            if let Some(ref rx) = solving_rx {
+                match rx.try_recv() {
+                    Ok(result) => {
+                        finished_result = Some(result);
+                    }
+                    Err(mpsc::TryRecvError::Empty) => {}
+                    Err(mpsc::TryRecvError::Disconnected) => {
+                        state.status_msg = "Solver thread crashed/disconnected.".to_string();
+                        solving_rx = None;
+                        solve_start_time = None;
+                    }
+                }
+            }
+            if let Some(result) = finished_result {
+                state.opt_result = Some(result);
+                let duration = solve_start_time.take().map(|t| t.elapsed()).unwrap_or_default();
+                state.status_msg = format!("Solved in {:?}", duration);
+                solving_rx = None;
+            }
+        }
+
         terminal.draw(|f| {
             // Screen division into 2 columns
             let chunks = Layout::default()
@@ -551,14 +599,14 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
             left_lines.push(Line::from("─".repeat(46)));
 
             // 3. Run Optimization Button
-            let run_style = if state.selected_option == 27 {
+            let run_style = if state.selected_option == run_button_index {
                 Style::default().bg(Color::Rgb(50, 205, 50)).fg(Color::Black).add_modifier(Modifier::BOLD)
             } else {
                 Style::default().fg(Color::Rgb(50, 205, 50))
             };
             left_lines.push(Line::from(""));
             left_lines.push(Line::from(vec![
-                Span::raw(if state.selected_option == 27 { "> " } else { "  " }),
+                Span::raw(if state.selected_option == run_button_index { "> " } else { "  " }),
                 Span::styled("   [ RUN OPTIMIZATION ENGINE ]   ", run_style),
             ]));
             left_lines.push(Line::from(""));
@@ -628,7 +676,19 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
 
             // Bottom reports block in Column 2
             let mut results_lines = Vec::new();
-            if let Some(res) = &state.opt_result {
+            let solving_in_progress = solving_rx.is_some();
+            if solving_in_progress {
+                let spin_char = SPINNER_CHARS[spinner_frame % SPINNER_CHARS.len()];
+                results_lines.push(Line::from(vec![
+                    Span::styled(format!(" {} MATHEMATICAL SOLVER RUNNING...", spin_char), Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+                ]));
+                if let Some(start) = solve_start_time {
+                    results_lines.push(Line::from(vec![
+                        Span::raw(format!("  Elapsed Time: {:.1}s", start.elapsed().as_secs_f64())),
+                    ]));
+                }
+                results_lines.push(Line::from("  Please wait while rayon parallelizes search over your CPU cores."));
+            } else if let Some(res) = &state.opt_result {
                 results_lines.push(Line::from(vec![
                     Span::styled("OPTIMAL STARTING ZONE FOUND:", Style::default().fg(Color::Rgb(50, 205, 50)).add_modifier(Modifier::BOLD)),
                 ]));
@@ -698,6 +758,10 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                     break;
                 }
 
+                if solving_rx.is_some() {
+                    continue;
+                }
+
                 // Get dynamic layout sizing to handle scrolling limits in navigation keys
                 let size = terminal.size()?;
                 let layout_chunks = Layout::default()
@@ -711,7 +775,7 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                             state.selected_option -= 1;
 
                             // Adjust scroll top if focused on checklist
-                            if state.selected_option >= 6 && state.selected_option <= 26 {
+                            if state.selected_option >= 6 && state.selected_option <= max_weight_option_index {
                                 let item_idx = state.selected_option - 6;
                                 if item_idx < state.checklist_scroll_top {
                                     state.checklist_scroll_top = item_idx;
@@ -720,11 +784,11 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                         }
                     }
                     KeyCode::Down => {
-                        if state.selected_option < 27 {
+                        if state.selected_option < run_button_index {
                             state.selected_option += 1;
 
                             // Adjust scroll top if focused on checklist
-                            if state.selected_option >= 6 && state.selected_option <= 26 {
+                            if state.selected_option >= 6 && state.selected_option <= max_weight_option_index {
                                 let item_idx = state.selected_option - 6;
                                 let max_visible =
                                     (layout_chunks[0].height as usize).saturating_sub(24).max(1);
@@ -734,6 +798,50 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                                     state.checklist_scroll_top = item_idx + 1 - max_visible;
                                 }
                             }
+                        }
+                    }
+                    KeyCode::PageUp => {
+                        if state.selected_option > 0 {
+                            state.selected_option = state.selected_option.saturating_sub(5);
+                            
+                            // Adjust scroll top if focused on checklist
+                            if state.selected_option >= 6 && state.selected_option <= max_weight_option_index {
+                                let item_idx = state.selected_option - 6;
+                                if item_idx < state.checklist_scroll_top {
+                                    state.checklist_scroll_top = item_idx;
+                                }
+                            } else if state.selected_option < 6 {
+                                state.checklist_scroll_top = 0;
+                            }
+                        }
+                    }
+                    KeyCode::PageDown => {
+                        if state.selected_option < run_button_index {
+                            state.selected_option = (state.selected_option + 5).min(run_button_index);
+                            
+                            // Adjust scroll top if focused on checklist
+                            if state.selected_option >= 6 && state.selected_option <= max_weight_option_index {
+                                let item_idx = state.selected_option - 6;
+                                let max_visible =
+                                    (layout_chunks[0].height as usize).saturating_sub(24).max(1);
+                                if max_visible > 0
+                                    && item_idx >= state.checklist_scroll_top + max_visible
+                                {
+                                    state.checklist_scroll_top = item_idx + 1 - max_visible;
+                                }
+                            }
+                        }
+                    }
+                    KeyCode::Home => {
+                        state.selected_option = 0;
+                        state.checklist_scroll_top = 0;
+                    }
+                    KeyCode::End => {
+                        state.selected_option = run_button_index;
+                        let max_visible =
+                            (layout_chunks[0].height as usize).saturating_sub(24).max(1);
+                        if CONFIGURABLE_RESOURCES.len() > max_visible {
+                            state.checklist_scroll_top = CONFIGURABLE_RESOURCES.len() - max_visible;
                         }
                     }
                     KeyCode::Left => {
@@ -812,7 +920,7 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                             if state.sigma > 150.0 {
                                 state.sigma -= 50.0;
                             }
-                        } else if state.selected_option >= 6 && state.selected_option <= 26 {
+                        } else if state.selected_option >= 6 && state.selected_option <= max_weight_option_index {
                             let res_name = CONFIGURABLE_RESOURCES[state.selected_option - 6];
                             let val = weights.entry(res_name.to_string()).or_insert(0.0);
                             *val = (*val - 0.1).clamp(-10.0, 10.0);
@@ -898,7 +1006,7 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                             if state.sigma < 1500.0 {
                                 state.sigma += 50.0;
                             }
-                        } else if state.selected_option >= 6 && state.selected_option <= 26 {
+                        } else if state.selected_option >= 6 && state.selected_option <= max_weight_option_index {
                             let res_name = CONFIGURABLE_RESOURCES[state.selected_option - 6];
                             let val = weights.entry(res_name.to_string()).or_insert(0.0);
                             *val = (*val + 0.1).clamp(-10.0, 10.0);
@@ -909,7 +1017,7 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                         }
                     }
                     KeyCode::Char(' ') => {
-                        if state.selected_option >= 6 && state.selected_option <= 26 {
+                        if state.selected_option >= 6 && state.selected_option <= max_weight_option_index {
                             let res_name = CONFIGURABLE_RESOURCES[state.selected_option - 6];
                             let val = weights.entry(res_name.to_string()).or_insert(0.0);
                             if *val == 0.0 {
@@ -925,21 +1033,12 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                         }
                     }
                     KeyCode::Enter => {
-                        if state.selected_option == 27 {
+                        if state.selected_option == run_button_index {
+                            if solving_rx.is_some() {
+                                continue;
+                            }
                             state.status_msg = "Running mathematical solver...".to_string();
-
-                            // Re-draw once to update the status message
-                            terminal.draw(|f| {
-                                let size = f.size();
-                                let inner_chunks = Layout::default()
-                                    .direction(Direction::Horizontal)
-                                    .constraints([Constraint::Length(48), Constraint::Min(20)])
-                                    .split(size);
-                                let label =
-                                    Span::styled("Solving...", Style::default().fg(Color::Yellow));
-                                let temp_para = Paragraph::new(vec![Line::from(label)]);
-                                f.render_widget(temp_para, inner_chunks[1]);
-                            })?;
+                            solve_start_time = Some(std::time::Instant::now());
 
                             let mut config = OptimizerConfig::default();
                             config.sigma = state.sigma;
@@ -948,13 +1047,23 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                             config.strategy = state.search_strategy;
                             config.utility_func = state.utility_func;
                             config.decay_func = state.decay_func;
+                            config.game_phase = match state.preset_idx {
+                                0 => GamePhase::Phase1,
+                                1 => GamePhase::Phase2,
+                                2 => GamePhase::Phase3,
+                                3 => GamePhase::Phase4,
+                                4 => GamePhase::Phase5,
+                                _ => GamePhase::Phase1,
+                            };
 
-                            let start_time = std::time::Instant::now();
-                            let result = optimizer::optimize(nodes, &config);
-                            let duration = start_time.elapsed();
+                            let (tx, rx) = mpsc::channel();
+                            solving_rx = Some(rx);
 
-                            state.opt_result = Some(result);
-                            state.status_msg = format!("Solved in {:?}", duration);
+                            let nodes_clone = nodes.to_vec();
+                            thread::spawn(move || {
+                                let result = optimizer::optimize(&nodes_clone, &config);
+                                let _ = tx.send(result);
+                            });
                         }
                     }
                     _ => {}
@@ -1030,7 +1139,14 @@ fn main() {
             "--sigma" => {
                 if i + 1 < args.len() {
                     if let Ok(val) = args[i + 1].parse::<f64>() {
+                        if val <= 0.0 {
+                            eprintln!("Error: --sigma value must be greater than 0.0");
+                            return;
+                        }
                         config.sigma = val;
+                    } else {
+                        eprintln!("Error: --sigma requires a numeric value");
+                        return;
                     }
                     i += 2;
                 } else {
@@ -1117,6 +1233,7 @@ fn main() {
                     let phase_str = &args[i + 1];
                     if let Some(phase) = GamePhase::from_str(phase_str) {
                         phase.apply_weights(&mut config.weights);
+                        config.game_phase = phase;
                         active_phase = Some(phase);
                     } else {
                         eprintln!("Error: Invalid phase/tier value '{}'.", phase_str);
@@ -1302,6 +1419,14 @@ fn run_full_simulation_matrix(nodes: &[models::ResourceNode]) {
                 strategy: models::SearchStrategy::Hybrid,
                 utility_func: config.utility,
                 decay_func: config.decay,
+                game_phase: match config.preset_idx {
+                    0 => models::GamePhase::Phase1,
+                    1 => models::GamePhase::Phase2,
+                    2 => models::GamePhase::Phase3,
+                    3 => models::GamePhase::Phase4,
+                    4 => models::GamePhase::Phase5,
+                    _ => models::GamePhase::Phase1,
+                },
             };
             apply_preset_weights(config.preset_idx, &mut opt_config.weights);
             let res = optimizer::optimize(nodes, &opt_config);
@@ -1426,7 +1551,7 @@ fn run_full_simulation_matrix(nodes: &[models::ResourceNode]) {
     }
 
     // Write markdown report
-    let report_path = "C:/Users/Mark/.gemini/antigravity-cli/brain/781b4b0d-92b6-49f1-99c6-308f044a061f/simulation_report.md";
+    let report_path = "simulation_report.md";
     let mut rfile = File::create(report_path).expect("Failed to create report file");
 
     writeln!(rfile, "# FICSIT Start Optimizer Simulation Matrix Report").unwrap();

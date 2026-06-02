@@ -184,6 +184,8 @@ pub struct ResourceNode {
     pub y: f64,
     #[serde(default)]
     pub z: f64,
+    #[serde(default)]
+    pub obstructed: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -284,6 +286,7 @@ pub struct OptimizerConfig {
     pub strategy: SearchStrategy,
     pub utility_func: UtilityFunction,
     pub decay_func: DistanceDecay,
+    pub game_phase: GamePhase,
 }
 
 impl Default for OptimizerConfig {
@@ -316,6 +319,7 @@ impl Default for OptimizerConfig {
             strategy: SearchStrategy::Hybrid,
             utility_func: UtilityFunction::CobbDouglas,
             decay_func: DistanceDecay::Gaussian,
+            game_phase: GamePhase::Phase1,
         }
     }
 }

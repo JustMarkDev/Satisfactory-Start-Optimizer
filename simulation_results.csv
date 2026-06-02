@@ -39,10 +39,10 @@ Preset,Purity,Utility,Decay,Radius,X,Y,Z,Score,Spawn,SpawnDistance
 "Phase 2: Steel & Coal","Default","Cobb-Douglas","Exponential",700,150523.53,-34957.97,8720.81,3952.0498,"Northern Forest",1602.72
 "Phase 2: Steel & Coal","Default","Cobb-Douglas","Power-Law",700,-47655.21,-107987.21,3123.65,31232.3061,"Northern Forest",509.37
 "Phase 2: Steel & Coal","Default","Cobb-Douglas","Linear",700,362859.02,-138464.49,5394.62,44.6347,"Dune Desert",1421.68
-"Phase 2: Steel & Coal","Default","Leontief","Gaussian",700,412631.00,-203649.00,438.85,0.9301,"Dune Desert",1727.48
-"Phase 2: Steel & Coal","Default","Leontief","Exponential",700,412600.00,-203480.00,460.05,0.9301,"Dune Desert",1727.23
-"Phase 2: Steel & Coal","Default","Leontief","Power-Law",700,-255200.00,295836.00,-849.44,1.3750,"Grass Fields",1555.66
-"Phase 2: Steel & Coal","Default","Leontief","Linear",700,-112403.56,-145415.56,1664.30,0.2944,"Rocky Desert",1032.11
+"Phase 2: Steel & Coal","Default","Leontief","Gaussian",700,370880.53,-139735.88,5268.37,0.9533,"Dune Desert",1485.49
+"Phase 2: Steel & Coal","Default","Leontief","Exponential",700,420000.00,4131.91,-857.42,1.0903,"Dune Desert",2797.36
+"Phase 2: Steel & Coal","Default","Leontief","Power-Law",700,-244951.00,-308529.00,-774.57,1.3750,"Rocky Desert",1174.70
+"Phase 2: Steel & Coal","Default","Leontief","Linear",700,385831.00,-169871.00,4553.13,0.9289,"Dune Desert",1512.52
 "Phase 2: Steel & Coal","Default","Linear","Gaussian",700,328727.00,-139478.88,4064.68,41.4003,"Dune Desert",1133.39
 "Phase 2: Steel & Coal","Default","Linear","Exponential",700,329376.83,-134363.32,4675.69,29.9843,"Dune Desert",1170.86
 "Phase 2: Steel & Coal","Default","Linear","Power-Law",700,329104.47,-133850.69,4737.26,43.0559,"Dune Desert",1172.11
@@ -51,10 +51,10 @@ Preset,Purity,Utility,Decay,Radius,X,Y,Z,Score,Spawn,SpawnDistance
 "Phase 2: Steel & Coal","Normal","Cobb-Douglas","Exponential",700,333743.95,-135350.90,4667.77,2690.9069,"Dune Desert",1198.35
 "Phase 2: Steel & Coal","Normal","Cobb-Douglas","Power-Law",700,240787.68,-74894.07,4864.11,27698.0298,"Dune Desert",1351.08
 "Phase 2: Steel & Coal","Normal","Cobb-Douglas","Linear",700,358916.06,-135453.69,5428.04,13.5127,"Dune Desert",1403.50
-"Phase 2: Steel & Coal","Normal","Leontief","Gaussian",700,-45738.40,-106257.30,2641.25,0.4380,"Northern Forest",485.42
+"Phase 2: Steel & Coal","Normal","Leontief","Gaussian",700,370451.52,-137184.01,5355.53,0.9430,"Dune Desert",1493.98
 "Phase 2: Steel & Coal","Normal","Leontief","Exponential",700,383913.77,88371.61,1450.42,0.9411,"Dune Desert",3312.65
-"Phase 2: Steel & Coal","Normal","Leontief","Power-Law",700,-254551.00,276987.00,-663.01,1.3750,"Grass Fields",1492.08
-"Phase 2: Steel & Coal","Normal","Leontief","Linear",700,-57275.70,-118646.60,4125.50,0.2569,"Northern Forest",640.40
+"Phase 2: Steel & Coal","Normal","Leontief","Power-Law",700,401120.00,136160.00,1578.30,1.3750,"Dune Desert",3818.20
+"Phase 2: Steel & Coal","Normal","Leontief","Linear",700,391041.04,-175196.40,4302.76,0.8336,"Dune Desert",1549.99
 "Phase 2: Steel & Coal","Normal","Linear","Gaussian",700,333233.42,-135638.49,4506.01,34.1618,"Dune Desert",1192.56
 "Phase 2: Steel & Coal","Normal","Linear","Exponential",700,329379.10,-134366.66,4675.28,23.7871,"Dune Desert",1170.86
 "Phase 2: Steel & Coal","Normal","Linear","Power-Law",700,343421.06,-121343.72,5427.37,28.2477,"Dune Desert",1362.20
@@ -63,10 +63,10 @@ Preset,Purity,Utility,Decay,Radius,X,Y,Z,Score,Spawn,SpawnDistance
 "Phase 2: Steel & Coal","Pure","Cobb-Douglas","Exponential",700,351610.81,-143842.87,4691.97,59364.3393,"Dune Desert",1297.45
 "Phase 2: Steel & Coal","Pure","Cobb-Douglas","Power-Law",700,330756.84,-132126.69,4923.06,476612.4879,"Dune Desert",1195.87
 "Phase 2: Steel & Coal","Pure","Cobb-Douglas","Linear",700,359024.12,-135456.00,5437.00,257.0917,"Dune Desert",1404.41
-"Phase 2: Steel & Coal","Pure","Leontief","Gaussian",700,412631.00,-203649.00,438.85,0.9301,"Dune Desert",1727.48
-"Phase 2: Steel & Coal","Pure","Leontief","Exponential",700,279551.32,275136.41,1776.96,1.0493,"Grass Fields",3911.33
-"Phase 2: Steel & Coal","Pure","Leontief","Power-Law",700,-225280.00,-324120.00,1147.22,1.3750,"Rocky Desert",1266.68
-"Phase 2: Steel & Coal","Pure","Leontief","Linear",700,-56529.93,-107932.48,2420.18,0.4538,"Northern Forest",593.06
+"Phase 2: Steel & Coal","Pure","Leontief","Gaussian",700,413982.00,-202298.00,942.48,0.9301,"Dune Desert",1741.52
+"Phase 2: Steel & Coal","Pure","Leontief","Exponential",700,415000.00,55520.00,501.09,1.3750,"Dune Desert",3180.03
+"Phase 2: Steel & Coal","Pure","Leontief","Power-Law",700,397009.00,223809.00,4211.51,1.3750,"Dune Desert",4613.48
+"Phase 2: Steel & Coal","Pure","Leontief","Linear",700,384726.50,-168575.50,4495.34,0.9289,"Dune Desert",1505.38
 "Phase 2: Steel & Coal","Pure","Linear","Gaussian",700,338020.33,-131704.98,5009.30,63.2167,"Dune Desert",1254.52
 "Phase 2: Steel & Coal","Pure","Linear","Exponential",700,344694.65,-125843.38,4795.10,41.0704,"Dune Desert",1343.25
 "Phase 2: Steel & Coal","Pure","Linear","Power-Law",700,406169.01,-131621.51,4715.03,55.4684,"Dune Desert",1837.26
@@ -77,7 +77,7 @@ Preset,Purity,Utility,Decay,Radius,X,Y,Z,Score,Spawn,SpawnDistance
 "Phase 3: Oil & Quartz","Default","Cobb-Douglas","Linear",700,104067.66,-4082.66,14660.17,1.8283,"Northern Forest",1349.51
 "Phase 3: Oil & Quartz","Default","Leontief","Gaussian",700,281570.62,81685.88,-1453.51,0.5325,"Dune Desert",2946.33
 "Phase 3: Oil & Quartz","Default","Leontief","Exponential",700,287539.27,95397.73,-938.84,0.4595,"Dune Desert",3090.76
-"Phase 3: Oil & Quartz","Default","Leontief","Power-Law",700,386274.77,84627.08,-413.55,1.4008,"Dune Desert",3289.40
+"Phase 3: Oil & Quartz","Default","Leontief","Power-Law",700,85484.99,369615.76,-454.39,1.4417,"Grass Fields",2345.52
 "Phase 3: Oil & Quartz","Default","Leontief","Linear",700,121542.64,194271.42,-5018.30,0.1061,"Grass Fields",2360.15
 "Phase 3: Oil & Quartz","Default","Linear","Gaussian",700,328727.00,-139478.88,4064.68,34.8951,"Dune Desert",1133.39
 "Phase 3: Oil & Quartz","Default","Linear","Exponential",700,329376.83,-134363.32,4675.69,25.4807,"Dune Desert",1170.86
@@ -89,7 +89,7 @@ Preset,Purity,Utility,Decay,Radius,X,Y,Z,Score,Spawn,SpawnDistance
 "Phase 3: Oil & Quartz","Normal","Cobb-Douglas","Linear",700,141948.37,223066.01,-6639.02,0.2585,"Grass Fields",2525.17
 "Phase 3: Oil & Quartz","Normal","Leontief","Gaussian",700,-45738.40,-106257.30,2641.25,0.5840,"Northern Forest",485.42
 "Phase 3: Oil & Quartz","Normal","Leontief","Exponential",700,67210.94,-225329.50,1228.28,0.4850,"Northern Forest",1511.01
-"Phase 3: Oil & Quartz","Normal","Leontief","Power-Law",700,413697.85,48850.12,463.62,1.3278,"Dune Desert",3117.28
+"Phase 3: Oil & Quartz","Normal","Leontief","Power-Law",700,413697.95,48863.49,463.71,1.3278,"Dune Desert",3117.39
 "Phase 3: Oil & Quartz","Normal","Leontief","Linear",700,121542.64,194271.42,-5018.30,0.1061,"Grass Fields",2360.15
 "Phase 3: Oil & Quartz","Normal","Linear","Gaussian",700,333241.53,-135646.06,4505.44,28.7691,"Dune Desert",1192.58
 "Phase 3: Oil & Quartz","Normal","Linear","Exponential",700,329376.83,-134363.32,4675.69,20.2242,"Dune Desert",1170.86
@@ -100,12 +100,12 @@ Preset,Purity,Utility,Decay,Radius,X,Y,Z,Score,Spawn,SpawnDistance
 "Phase 3: Oil & Quartz","Pure","Cobb-Douglas","Power-Law",700,71720.23,-174050.57,1619.42,1645258.9735,"Northern Forest",1104.91
 "Phase 3: Oil & Quartz","Pure","Cobb-Douglas","Linear",700,122084.70,201578.59,-5806.61,12.5881,"Grass Fields",2352.44
 "Phase 3: Oil & Quartz","Pure","Leontief","Gaussian",700,-212744.44,-68834.37,131.56,0.7009,"Rocky Desert",1317.83
-"Phase 3: Oil & Quartz","Pure","Leontief","Exponential",700,59145.27,-254249.80,1513.38,0.5881,"Northern Forest",1745.74
-"Phase 3: Oil & Quartz","Pure","Leontief","Power-Law",700,415693.00,52529.00,481.29,1.8333,"Dune Desert",3158.95
+"Phase 3: Oil & Quartz","Pure","Leontief","Exponential",700,345151.85,-117552.40,5793.33,0.6538,"Dune Desert",1400.12
+"Phase 3: Oil & Quartz","Pure","Leontief","Power-Law",700,416680.00,63640.00,-516.33,1.8333,"Dune Desert",3257.22
 "Phase 3: Oil & Quartz","Pure","Leontief","Linear",700,121042.34,193895.16,-4995.93,0.1833,"Grass Fields",2355.98
 "Phase 3: Oil & Quartz","Pure","Linear","Gaussian",700,338020.33,-131704.98,5009.30,53.2653,"Dune Desert",1254.52
 "Phase 3: Oil & Quartz","Pure","Linear","Exponential",700,344909.12,-125889.79,4958.98,34.9331,"Dune Desert",1344.64
-"Phase 3: Oil & Quartz","Pure","Linear","Power-Law",700,413029.14,32544.83,-448.75,47.5682,"Dune Desert",2979.38
+"Phase 3: Oil & Quartz","Pure","Linear","Power-Law",700,90591.27,366869.73,-538.65,47.5917,"Grass Fields",2373.45
 "Phase 3: Oil & Quartz","Pure","Linear","Linear",700,323690.54,-146158.85,4157.01,15.8567,"Dune Desert",1052.61
 "Phase 4: Late Game","Default","Cobb-Douglas","Gaussian",700,118673.09,41285.03,10857.12,1374343.3607,"Northern Forest",1769.72
 "Phase 4: Late Game","Default","Cobb-Douglas","Exponential",700,95551.31,81112.75,10535.43,261769.3521,"Northern Forest",1959.84

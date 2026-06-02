@@ -119,13 +119,14 @@ pub fn load_nodes_from_str(s: &str) -> Result<Vec<ResourceNode>, Box<dyn std::er
                             let purity_str = marker.purity.as_deref().unwrap_or("RP_Normal");
                             let purity = Purity::from_str(purity_str);
 
-                            nodes.push(ResourceNode {
+                             nodes.push(ResourceNode {
                                 resource_type: res_type.to_string(),
                                 purity,
                                 x: marker.x,
                                 y: marker.y,
                                 z: marker.z.unwrap_or(0.0),
-                            });
+                                obstructed: marker.obstructed.unwrap_or(false),
+                             });
                         }
                     }
                 }
@@ -133,7 +134,7 @@ pub fn load_nodes_from_str(s: &str) -> Result<Vec<ResourceNode>, Box<dyn std::er
             return Ok(nodes);
         }
         Err(err) => {
-            println!("Error parsing new format: {:?}", err);
+            eprintln!("Error parsing new format: {:?}", err);
         }
     }
 
@@ -142,7 +143,7 @@ pub fn load_nodes_from_str(s: &str) -> Result<Vec<ResourceNode>, Box<dyn std::er
     match old_res {
         Ok(nodes) => return Ok(nodes),
         Err(err) => {
-            println!("Error parsing old format: {:?}", err);
+            eprintln!("Error parsing old format: {:?}", err);
         }
     }
 
