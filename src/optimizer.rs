@@ -207,7 +207,6 @@ fn calculate_utility(
 
     // 2. Sum yields for all resource types & collect local heights for terrain flatness
     let mut yields = [0.0; 32];
-    let two_sigma_sq = 2.0 * config.sigma * config.sigma;
 
     let build_radius = 1.5 * config.sigma; // factory building area footprint
     let build_radius_m_sq = build_radius * build_radius;
@@ -227,7 +226,16 @@ fn calculate_utility(
                 let d_sq = dx * dx + dy * dy + (dz * dz * vertical_multiplier * vertical_multiplier);
 
                 if d_sq <= radius_m_sq {
-                    let decay = (-d_sq / two_sigma_sq).exp();
+                    let d = d_sq.sqrt();
+                    let decay = match config.decay_func {
+                        crate::models::DistanceDecay::Gaussian => {
+                            let two_sigma_sq = 2.0 * config.sigma * config.sigma;
+                            (-d_sq / two_sigma_sq).exp()
+                        }
+                        crate::models::DistanceDecay::Exponential => (-d / config.sigma).exp(),
+                        crate::models::DistanceDecay::PowerLaw => 1.0 / (d / config.sigma + 1.0),
+                        crate::models::DistanceDecay::Linear => (1.0 - d / config.sigma).max(0.0),
+                    };
                     let contribution = node.multiplier * decay;
                     yields[node.res_idx] += contribution;
 
@@ -244,7 +252,15 @@ fn calculate_utility(
     // Add virtual water yield based on proximity to lakes, oceans, or waterwells
     if let Some(&water_idx) = res_to_idx.get("water") {
         let water_dist = distance_to_nearest_water(x, y, opt_nodes, waterwell_idx);
-        let water_decay = (- (water_dist * water_dist) / two_sigma_sq).exp();
+        let water_decay = match config.decay_func {
+            crate::models::DistanceDecay::Gaussian => {
+                let two_sigma_sq = 2.0 * config.sigma * config.sigma;
+                (- (water_dist * water_dist) / two_sigma_sq).exp()
+            }
+            crate::models::DistanceDecay::Exponential => (- water_dist / config.sigma).exp(),
+            crate::models::DistanceDecay::PowerLaw => 1.0 / (water_dist / config.sigma + 1.0),
+            crate::models::DistanceDecay::Linear => (1.0 - water_dist / config.sigma).max(0.0),
+        };
         yields[water_idx] = water_decay;
     }
 
@@ -269,17 +285,53 @@ fn calculate_utility(
         flatness_mult = (-std_dev_m / 40.0).exp();
     }
 
-    // 4. Cobb-Douglas combined utility + Radiation Penalties
-    let mut score = 1.0;
+    // 4. Combined Utility + Radiation Penalties
+    let mut score = match config.utility_func {
+        crate::models::UtilityFunction::CobbDouglas => {
+            let mut s = 1.0;
+            for i in 0..num_resources {
+                let weight = weights_arr[i];
+                if weight > 0.0 {
+                    let res_yield = yields[i];
+                    let eps = epsilons_arr[i];
+                    s *= (res_yield + eps).powf(weight);
+                }
+            }
+            s
+        }
+        crate::models::UtilityFunction::Leontief => {
+            let mut s = f64::MAX;
+            let mut has_pos = false;
+            for i in 0..num_resources {
+                let weight = weights_arr[i];
+                if weight > 0.0 {
+                    has_pos = true;
+                    let res_yield = yields[i];
+                    let eps = epsilons_arr[i];
+                    let val = (res_yield + eps) / weight;
+                    if val < s {
+                        s = val;
+                    }
+                }
+            }
+            if has_pos { s } else { 0.0 }
+        }
+        crate::models::UtilityFunction::Linear => {
+            let mut s = 0.0;
+            for i in 0..num_resources {
+                let weight = weights_arr[i];
+                if weight > 0.0 {
+                    s += yields[i] * weight;
+                }
+            }
+            s
+        }
+    };
+
+    // Apply threat penalties (negative weights)
     for i in 0..num_resources {
         let weight = weights_arr[i];
-        if weight > 0.0 {
-            let res_yield = yields[i];
-            let eps = epsilons_arr[i];
-            score *= (res_yield + eps).powf(weight);
-        } else if weight < 0.0 {
-            // Negative weights represent threats (like radiation from Uranium).
-            // We penalize the score exponentially based on threat yield.
+        if weight < 0.0 {
             let res_yield = yields[i];
             let penalty_factor = (res_yield * weight.abs()).exp();
             score /= penalty_factor;

@@ -239,11 +239,51 @@ impl SearchStrategy {
     }
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum UtilityFunction {
+    CobbDouglas,
+    Leontief,
+    Linear,
+}
+
+impl UtilityFunction {
+    pub fn to_str(self) -> &'static str {
+        match self {
+            UtilityFunction::CobbDouglas => "Cobb-Douglas (Balanced)",
+            UtilityFunction::Leontief => "Leontief (Min-Bottleneck)",
+            UtilityFunction::Linear => "Linear (Additive/Volume)",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum DistanceDecay {
+    Gaussian,
+    Exponential,
+    PowerLaw,
+    Linear,
+}
+
+impl DistanceDecay {
+    pub fn to_str(self) -> &'static str {
+        match self {
+            DistanceDecay::Gaussian => "Gaussian (Smooth Drop)",
+            DistanceDecay::Exponential => "Exponential (Linear Cost)",
+            DistanceDecay::PowerLaw => "Power-Law (Heavy Tail)",
+            DistanceDecay::Linear => "Linear (Hard Cutoff)",
+        }
+    }
+}
+
 pub struct OptimizerConfig {
     pub sigma: f64, // Effective walking distance in meters
     pub weights: HashMap<String, f64>,
     pub purity_override: PurityOverride,
     pub strategy: SearchStrategy,
+    pub utility_func: UtilityFunction,
+    pub decay_func: DistanceDecay,
 }
 
 impl Default for OptimizerConfig {
@@ -274,6 +314,8 @@ impl Default for OptimizerConfig {
             weights,
             purity_override: PurityOverride::Default,
             strategy: SearchStrategy::Hybrid,
+            utility_func: UtilityFunction::CobbDouglas,
+            decay_func: DistanceDecay::Gaussian,
         }
     }
 }
