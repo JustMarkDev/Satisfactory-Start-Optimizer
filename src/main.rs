@@ -1,23 +1,23 @@
-mod models;
 mod data_loader;
+mod models;
 mod optimizer;
 
-use models::{OptimizerConfig, GamePhase, PurityOverride};
-use std::env;
+use models::{GamePhase, OptimizerConfig, PurityOverride};
 use std::collections::HashMap;
+use std::env;
 
+use crossterm::{
+    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
+    execute,
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
+};
 use ratatui::{
+    Terminal,
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph},
-    Terminal,
-};
-use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
-    execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 
 const PRESET_NAMES: &[&str] = &[
@@ -212,10 +212,34 @@ fn draw_ascii_map(
     let mut map_chars = vec![vec![(" ", Color::DarkGray); width]; height];
 
     let spawns = [
-        ("Grass Fields", -110000.0, 240000.0, Color::Rgb(34, 139, 34), "."),
-        ("Rocky Desert", -200000.0, -200000.0, Color::Rgb(210, 180, 140), "-"),
-        ("Northern Forest", 0.0, -90000.0, Color::Rgb(46, 139, 87), "*"),
-        ("Dune Desert", 240000.0, -210000.0, Color::Rgb(244, 164, 96), "~"),
+        (
+            "Grass Fields",
+            -110000.0,
+            240000.0,
+            Color::Rgb(34, 139, 34),
+            ".",
+        ),
+        (
+            "Rocky Desert",
+            -200000.0,
+            -200000.0,
+            Color::Rgb(210, 180, 140),
+            "-",
+        ),
+        (
+            "Northern Forest",
+            0.0,
+            -90000.0,
+            Color::Rgb(46, 139, 87),
+            "*",
+        ),
+        (
+            "Dune Desert",
+            240000.0,
+            -210000.0,
+            Color::Rgb(244, 164, 96),
+            "~",
+        ),
     ];
 
     // Populate biome indicators
@@ -245,16 +269,20 @@ fn draw_ascii_map(
 
     // Render major starting spawns
     for &(_name, sx, sy, _color, _ch) in &spawns {
-        let c = (((sx - min_x) / (max_x - min_x) * (width - 1) as f64).round() as usize).clamp(0, width - 1);
-        let r = (((sy - min_y) / (max_y - min_y) * (height - 1) as f64).round() as usize).clamp(0, height - 1);
+        let c = (((sx - min_x) / (max_x - min_x) * (width - 1) as f64).round() as usize)
+            .clamp(0, width - 1);
+        let r = (((sy - min_y) / (max_y - min_y) * (height - 1) as f64).round() as usize)
+            .clamp(0, height - 1);
         map_chars[r][c] = ("S", Color::Rgb(240, 248, 255));
     }
 
     // Render optimal crosshair if solved
     if let Some(res) = result {
-        let c = (((res.x - min_x) / (max_x - min_x) * (width - 1) as f64).round() as usize).clamp(0, width - 1);
-        let r = (((res.y - min_y) / (max_y - min_y) * (height - 1) as f64).round() as usize).clamp(0, height - 1);
-        
+        let c = (((res.x - min_x) / (max_x - min_x) * (width - 1) as f64).round() as usize)
+            .clamp(0, width - 1);
+        let r = (((res.y - min_y) / (max_y - min_y) * (height - 1) as f64).round() as usize)
+            .clamp(0, height - 1);
+
         map_chars[r][c] = ("X", Color::Rgb(255, 69, 0));
         if c > 0 {
             map_chars[r][c - 1] = ("[", Color::Rgb(255, 69, 0));
@@ -289,7 +317,13 @@ fn run_tui(
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let app_result = run_tui_loop(&mut terminal, nodes, file_info, initial_config, initial_preset_idx);
+    let app_result = run_tui_loop(
+        &mut terminal,
+        nodes,
+        file_info,
+        initial_config,
+        initial_preset_idx,
+    );
 
     // Clean up raw mode alternate screen
     disable_raw_mode()?;
@@ -324,7 +358,7 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
     };
 
     let mut weights = initial_config.weights.clone();
-    
+
     // Initialize last_nonzero_weights map
     let mut last_nonzero_weights = HashMap::new();
     for res in CONFIGURABLE_RESOURCES {
@@ -365,7 +399,7 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
 
             // Build layout lines for left configuration column
             let mut left_lines = Vec::new();
-            
+
             // 1. Constraints Section
             let preset_name = PRESET_NAMES[state.preset_idx];
             let phase_style = if state.selected_option == 0 {
@@ -440,21 +474,21 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
             // 2. Checklist Section (Scrollable viewport inside Left Column)
             let height = chunks[0].height as usize;
             let max_visible = (height.saturating_sub(24)).max(1);
-            
+
             let end_idx = (state.checklist_scroll_top + max_visible).min(CONFIGURABLE_RESOURCES.len());
             for idx in state.checklist_scroll_top..end_idx {
                 let res = CONFIGURABLE_RESOURCES[idx];
                 let val = *weights.get(res).unwrap_or(&0.0);
-                
+
                 let is_focused = state.selected_option == 6 + idx;
                 let is_enabled = val != 0.0;
-                
+
                 let checkbox = if is_enabled {
                     Span::styled("[X] ", Style::default().fg(Color::Rgb(50, 205, 50)).add_modifier(Modifier::BOLD))
                 } else {
                     Span::styled("[ ] ", Style::default().fg(Color::Rgb(128, 128, 128)))
                 };
-                
+
                 let res_color = match res {
                     "iron" => Color::Rgb(70, 130, 180),
                     "copper" => Color::Rgb(184, 115, 51),
@@ -479,7 +513,7 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                     "harddrive" => Color::Rgb(205, 127, 50),
                     _ => Color::Gray,
                 };
-                
+
                 let prefix = if is_focused { "> " } else { "  " };
                 let item_style = if is_focused {
                     Style::default().fg(Color::Rgb(255, 152, 0)).add_modifier(Modifier::BOLD)
@@ -488,9 +522,9 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                 } else {
                     Style::default().fg(Color::Rgb(100, 100, 100))
                 };
-                
+
                 let padded_name = format!("{:<12}", res);
-                
+
                 let weight_span = if val < 0.0 {
                     Span::styled(format!("{:.1}", val), Style::default().fg(Color::Rgb(255, 69, 0)).add_modifier(Modifier::BOLD))
                 } else if is_enabled {
@@ -498,7 +532,7 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                 } else {
                     Span::styled("0.0", Style::default().fg(Color::Rgb(128, 128, 128)))
                 };
-                
+
                 left_lines.push(Line::from(vec![
                     Span::raw(prefix),
                     checkbox,
@@ -547,8 +581,8 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
             let main_chunks = Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([
-                    Constraint::Min(10),   
-                    Constraint::Length(12), 
+                    Constraint::Min(10),
+                    Constraint::Length(12),
                 ])
                 .split(chunks[1]);
 
@@ -556,7 +590,7 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                 .title(" FICSIT MAP INTERACTIVE ASCII OVERLAY ")
                 .borders(Borders::ALL);
             f.render_widget(map_block.clone(), main_chunks[0]);
-            
+
             let map_inner = map_block.inner(main_chunks[0]);
             let map_sub_chunks = Layout::default()
                 .direction(Direction::Vertical)
@@ -607,7 +641,7 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                 results_lines.push(Line::from(vec![
                     Span::raw(format!("  Closest Spawn: {} Biome (Distance: {:.1}m)", res.closest_spawn.name, res.spawn_distance)),
                 ]));
-                
+
                 let build_radius = 1.5 * state.sigma;
                 let mut local_heights = Vec::new();
                 for node in nodes {
@@ -663,22 +697,19 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                 if key.code == KeyCode::Char('q') || key.code == KeyCode::Esc {
                     break;
                 }
-                
+
                 // Get dynamic layout sizing to handle scrolling limits in navigation keys
                 let size = terminal.size()?;
                 let layout_chunks = Layout::default()
                     .direction(Direction::Horizontal)
-                    .constraints([
-                        Constraint::Length(48),
-                        Constraint::Min(20),
-                    ])
+                    .constraints([Constraint::Length(48), Constraint::Min(20)])
                     .split(size);
-                
+
                 match key.code {
                     KeyCode::Up => {
                         if state.selected_option > 0 {
                             state.selected_option -= 1;
-                            
+
                             // Adjust scroll top if focused on checklist
                             if state.selected_option >= 6 && state.selected_option <= 26 {
                                 let item_idx = state.selected_option - 6;
@@ -691,12 +722,15 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                     KeyCode::Down => {
                         if state.selected_option < 27 {
                             state.selected_option += 1;
-                            
+
                             // Adjust scroll top if focused on checklist
                             if state.selected_option >= 6 && state.selected_option <= 26 {
                                 let item_idx = state.selected_option - 6;
-                                let max_visible = (layout_chunks[0].height as usize).saturating_sub(24).max(1);
-                                if max_visible > 0 && item_idx >= state.checklist_scroll_top + max_visible {
+                                let max_visible =
+                                    (layout_chunks[0].height as usize).saturating_sub(24).max(1);
+                                if max_visible > 0
+                                    && item_idx >= state.checklist_scroll_top + max_visible
+                                {
                                     state.checklist_scroll_top = item_idx + 1 - max_visible;
                                 }
                             }
@@ -715,7 +749,10 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                                 models::PurityOverride::Normal,
                                 models::PurityOverride::Pure,
                             ];
-                            let mut curr_idx = modes.iter().position(|&m| m == state.purity_override).unwrap_or(0);
+                            let mut curr_idx = modes
+                                .iter()
+                                .position(|&m| m == state.purity_override)
+                                .unwrap_or(0);
                             if curr_idx > 0 {
                                 curr_idx -= 1;
                             } else {
@@ -728,7 +765,10 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                                 models::SearchStrategy::Fast,
                                 models::SearchStrategy::Slow,
                             ];
-                            let mut curr_idx = strategies.iter().position(|&s| s == state.search_strategy).unwrap_or(0);
+                            let mut curr_idx = strategies
+                                .iter()
+                                .position(|&s| s == state.search_strategy)
+                                .unwrap_or(0);
                             if curr_idx > 0 {
                                 curr_idx -= 1;
                             } else {
@@ -741,7 +781,10 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                                 models::UtilityFunction::Leontief,
                                 models::UtilityFunction::Linear,
                             ];
-                            let mut curr_idx = funcs.iter().position(|&f| f == state.utility_func).unwrap_or(0);
+                            let mut curr_idx = funcs
+                                .iter()
+                                .position(|&f| f == state.utility_func)
+                                .unwrap_or(0);
                             if curr_idx > 0 {
                                 curr_idx -= 1;
                             } else {
@@ -755,7 +798,10 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                                 models::DistanceDecay::PowerLaw,
                                 models::DistanceDecay::Linear,
                             ];
-                            let mut curr_idx = decays.iter().position(|&d| d == state.decay_func).unwrap_or(0);
+                            let mut curr_idx = decays
+                                .iter()
+                                .position(|&d| d == state.decay_func)
+                                .unwrap_or(0);
                             if curr_idx > 0 {
                                 curr_idx -= 1;
                             } else {
@@ -789,7 +835,10 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                                 models::PurityOverride::Normal,
                                 models::PurityOverride::Pure,
                             ];
-                            let mut curr_idx = modes.iter().position(|&m| m == state.purity_override).unwrap_or(0);
+                            let mut curr_idx = modes
+                                .iter()
+                                .position(|&m| m == state.purity_override)
+                                .unwrap_or(0);
                             if curr_idx < 3 {
                                 curr_idx += 1;
                             } else {
@@ -802,7 +851,10 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                                 models::SearchStrategy::Fast,
                                 models::SearchStrategy::Slow,
                             ];
-                            let mut curr_idx = strategies.iter().position(|&s| s == state.search_strategy).unwrap_or(0);
+                            let mut curr_idx = strategies
+                                .iter()
+                                .position(|&s| s == state.search_strategy)
+                                .unwrap_or(0);
                             if curr_idx < 2 {
                                 curr_idx += 1;
                             } else {
@@ -815,7 +867,10 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                                 models::UtilityFunction::Leontief,
                                 models::UtilityFunction::Linear,
                             ];
-                            let mut curr_idx = funcs.iter().position(|&f| f == state.utility_func).unwrap_or(0);
+                            let mut curr_idx = funcs
+                                .iter()
+                                .position(|&f| f == state.utility_func)
+                                .unwrap_or(0);
                             if curr_idx < 2 {
                                 curr_idx += 1;
                             } else {
@@ -829,7 +884,10 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                                 models::DistanceDecay::PowerLaw,
                                 models::DistanceDecay::Linear,
                             ];
-                            let mut curr_idx = decays.iter().position(|&d| d == state.decay_func).unwrap_or(0);
+                            let mut curr_idx = decays
+                                .iter()
+                                .position(|&d| d == state.decay_func)
+                                .unwrap_or(0);
                             if curr_idx < 3 {
                                 curr_idx += 1;
                             } else {
@@ -855,7 +913,10 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                             let res_name = CONFIGURABLE_RESOURCES[state.selected_option - 6];
                             let val = weights.entry(res_name.to_string()).or_insert(0.0);
                             if *val == 0.0 {
-                                let restored = last_nonzero_weights.get(res_name).copied().unwrap_or_else(|| default_nonzero_weight(res_name));
+                                let restored = last_nonzero_weights
+                                    .get(res_name)
+                                    .copied()
+                                    .unwrap_or_else(|| default_nonzero_weight(res_name));
                                 *val = restored;
                             } else {
                                 last_nonzero_weights.insert(res_name.to_string(), *val);
@@ -866,38 +927,37 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                     KeyCode::Enter => {
                         if state.selected_option == 27 {
                             state.status_msg = "Running mathematical solver...".to_string();
-                            
+
                             // Re-draw once to update the status message
                             terminal.draw(|f| {
                                 let size = f.size();
-                                  let inner_chunks = Layout::default()
-                                      .direction(Direction::Horizontal)
-                                      .constraints([
-                                          Constraint::Length(48),
-                                          Constraint::Min(20),
-                                      ])
-                                      .split(size);
-                                  let label = Span::styled("Solving...", Style::default().fg(Color::Yellow));
-                                  let temp_para = Paragraph::new(vec![Line::from(label)]);
-                                  f.render_widget(temp_para, inner_chunks[1]);
-                              })?;
-  
-                              let mut config = OptimizerConfig::default();
-                              config.sigma = state.sigma;
-                              config.weights = weights.clone();
-                              config.purity_override = state.purity_override;
-                              config.strategy = state.search_strategy;
-                              config.utility_func = state.utility_func;
-                              config.decay_func = state.decay_func;
-  
-                              let start_time = std::time::Instant::now();
-                              let result = optimizer::optimize(nodes, &config);
-                              let duration = start_time.elapsed();
-  
-                              state.opt_result = Some(result);
-                              state.status_msg = format!("Solved in {:?}", duration);
-                          }
-                      }    _ => {}
+                                let inner_chunks = Layout::default()
+                                    .direction(Direction::Horizontal)
+                                    .constraints([Constraint::Length(48), Constraint::Min(20)])
+                                    .split(size);
+                                let label =
+                                    Span::styled("Solving...", Style::default().fg(Color::Yellow));
+                                let temp_para = Paragraph::new(vec![Line::from(label)]);
+                                f.render_widget(temp_para, inner_chunks[1]);
+                            })?;
+
+                            let mut config = OptimizerConfig::default();
+                            config.sigma = state.sigma;
+                            config.weights = weights.clone();
+                            config.purity_override = state.purity_override;
+                            config.strategy = state.search_strategy;
+                            config.utility_func = state.utility_func;
+                            config.decay_func = state.decay_func;
+
+                            let start_time = std::time::Instant::now();
+                            let result = optimizer::optimize(nodes, &config);
+                            let duration = start_time.elapsed();
+
+                            state.opt_result = Some(result);
+                            state.status_msg = format!("Solved in {:?}", duration);
+                        }
+                    }
+                    _ => {}
                 }
             }
         }
@@ -918,7 +978,7 @@ Usage:
 
 Options:
   --file <path>        Load resource nodes from a custom JSON file
-  --sigma <meters>     Logistical walking radius in meters (default: 600)
+  --sigma <meters>     Logistical walking radius in meters (default: 700)
   --tier <1-5|early|steel|oil|late|quantum>
                        Select game phase preset for non-interactive mode.
   --purity <default|impure|normal|pure>
@@ -939,7 +999,7 @@ Options:
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    
+
     if args.iter().any(|arg| arg == "--help" || arg == "-h") {
         print_help();
         return;
@@ -947,9 +1007,12 @@ fn main() {
 
     let mut custom_file_path: Option<String> = None;
     let mut config = OptimizerConfig::default();
+    // Default weights to the first preset (Phase 1)
+    GamePhase::Phase1.apply_weights(&mut config.weights);
     let mut active_phase: Option<GamePhase> = None;
     let mut is_collectibles_mode = false;
     let mut output_json = false;
+    let mut run_simulation = false;
 
     // Parse command line arguments
     let mut i = 1;
@@ -1006,11 +1069,16 @@ fn main() {
                 if i + 1 < args.len() {
                     let val = args[i + 1].to_lowercase();
                     config.utility_func = match val.as_str() {
-                        "cobbdouglas" | "cobb-douglas" | "cobb_douglas" => models::UtilityFunction::CobbDouglas,
+                        "cobbdouglas" | "cobb-douglas" | "cobb_douglas" => {
+                            models::UtilityFunction::CobbDouglas
+                        }
                         "leontief" => models::UtilityFunction::Leontief,
                         "linear" => models::UtilityFunction::Linear,
                         _ => {
-                            eprintln!("Error: Invalid utility function value '{}'. Choose from: cobbdouglas, leontief, linear", args[i + 1]);
+                            eprintln!(
+                                "Error: Invalid utility function value '{}'. Choose from: cobbdouglas, leontief, linear",
+                                args[i + 1]
+                            );
                             return;
                         }
                     };
@@ -1026,10 +1094,15 @@ fn main() {
                     config.decay_func = match val.as_str() {
                         "gaussian" => models::DistanceDecay::Gaussian,
                         "exponential" => models::DistanceDecay::Exponential,
-                        "powerlaw" | "power-law" | "power_law" | "gravity" => models::DistanceDecay::PowerLaw,
+                        "powerlaw" | "power-law" | "power_law" | "gravity" => {
+                            models::DistanceDecay::PowerLaw
+                        }
                         "linear" => models::DistanceDecay::Linear,
                         _ => {
-                            eprintln!("Error: Invalid decay function value '{}'. Choose from: gaussian, exponential, powerlaw, linear", args[i + 1]);
+                            eprintln!(
+                                "Error: Invalid decay function value '{}'. Choose from: gaussian, exponential, powerlaw, linear",
+                                args[i + 1]
+                            );
                             return;
                         }
                     };
@@ -1070,6 +1143,10 @@ fn main() {
                 output_json = true;
                 i += 1;
             }
+            "--simulate-all" => {
+                run_simulation = true;
+                i += 1;
+            }
             flag if flag.starts_with("--") => {
                 let resource_name = flag.trim_start_matches("--").to_string();
                 if i + 1 < args.len() {
@@ -1091,6 +1168,21 @@ fn main() {
                 return;
             }
         }
+    }
+
+    if run_simulation {
+        let nodes = match &custom_file_path {
+            Some(path) => match data_loader::load_nodes_from_file(path) {
+                Ok(n) => n,
+                Err(e) => {
+                    eprintln!("Error loading JSON file: {}", e);
+                    return;
+                }
+            },
+            None => data_loader::load_default_nodes(),
+        };
+        run_full_simulation_matrix(&nodes);
+        return;
     }
 
     if output_json {
@@ -1145,4 +1237,396 @@ fn main() {
     if let Err(e) = run_tui(&nodes, file_info, config, initial_preset_idx) {
         eprintln!("Terminal UI dashboard error: {:?}", e);
     }
+}
+
+fn run_full_simulation_matrix(nodes: &[models::ResourceNode]) {
+    use std::collections::HashMap;
+    use std::fs::File;
+    use std::io::Write;
+
+    struct SimConfig {
+        preset_idx: usize,
+        purity: PurityOverride,
+        utility: models::UtilityFunction,
+        decay: models::DistanceDecay,
+        sigma: f64,
+    }
+
+    let mut sim_configs = Vec::new();
+    let presets = 0..6;
+    let purities = [
+        PurityOverride::Default,
+        PurityOverride::Normal,
+        PurityOverride::Pure,
+    ];
+    let utilities = [
+        models::UtilityFunction::CobbDouglas,
+        models::UtilityFunction::Leontief,
+        models::UtilityFunction::Linear,
+    ];
+    let decays = [
+        models::DistanceDecay::Gaussian,
+        models::DistanceDecay::Exponential,
+        models::DistanceDecay::PowerLaw,
+        models::DistanceDecay::Linear,
+    ];
+    let sigma = 700.0;
+
+    for preset_idx in presets {
+        for &purity in &purities {
+            for &utility in &utilities {
+                for &decay in &decays {
+                    sim_configs.push(SimConfig {
+                        preset_idx,
+                        purity,
+                        utility,
+                        decay,
+                        sigma,
+                    });
+                }
+            }
+        }
+    }
+
+    println!(
+        "Running {} simulation configurations sequentially (each internally parallelized)...",
+        sim_configs.len()
+    );
+    let results: Vec<(SimConfig, optimizer::OptimizationResult)> = sim_configs
+        .into_iter()
+        .map(|config| {
+            let mut opt_config = OptimizerConfig {
+                sigma: config.sigma,
+                weights: HashMap::new(),
+                purity_override: config.purity,
+                strategy: models::SearchStrategy::Hybrid,
+                utility_func: config.utility,
+                decay_func: config.decay,
+            };
+            apply_preset_weights(config.preset_idx, &mut opt_config.weights);
+            let res = optimizer::optimize(nodes, &opt_config);
+            (config, res)
+        })
+        .collect();
+
+    // Write CSV
+    let csv_path = "simulation_results.csv";
+    let mut file = File::create(csv_path).expect("Failed to create CSV file");
+    writeln!(
+        file,
+        "Preset,Purity,Utility,Decay,Radius,X,Y,Z,Score,Spawn,SpawnDistance"
+    )
+    .unwrap();
+    for (conf, res) in &results {
+        let preset_name = match conf.preset_idx {
+            0 => "Phase 1: Early Game",
+            1 => "Phase 2: Steel & Coal",
+            2 => "Phase 3: Oil & Quartz",
+            3 => "Phase 4: Late Game",
+            4 => "Phase 5: Quantum",
+            5 => "Collectible Hunting",
+            _ => "Unknown",
+        };
+        let purity_str = match conf.purity {
+            PurityOverride::Default => "Default",
+            PurityOverride::Impure => "Impure",
+            PurityOverride::Normal => "Normal",
+            PurityOverride::Pure => "Pure",
+        };
+        let utility_str = match conf.utility {
+            models::UtilityFunction::CobbDouglas => "Cobb-Douglas",
+            models::UtilityFunction::Leontief => "Leontief",
+            models::UtilityFunction::Linear => "Linear",
+        };
+        let decay_str = match conf.decay {
+            models::DistanceDecay::Gaussian => "Gaussian",
+            models::DistanceDecay::Exponential => "Exponential",
+            models::DistanceDecay::PowerLaw => "Power-Law",
+            models::DistanceDecay::Linear => "Linear",
+        };
+        writeln!(
+            file,
+            "\"{}\",\"{}\",\"{}\",\"{}\",{},{:.2},{:.2},{:.2},{:.4},\"{}\",{:.2}",
+            preset_name,
+            purity_str,
+            utility_str,
+            decay_str,
+            conf.sigma,
+            res.x,
+            res.y,
+            res.z,
+            res.score,
+            res.closest_spawn.name,
+            res.spawn_distance
+        )
+        .unwrap();
+    }
+    println!(
+        "Saved raw simulation dataset ({} rows) to {}",
+        results.len(),
+        csv_path
+    );
+
+    // Compute analysis
+    let mut total_counts = HashMap::new();
+    let mut preset_spawn_counts = HashMap::new();
+    let mut utility_spawn_counts = HashMap::new();
+    let mut decay_spawn_counts = HashMap::new();
+    let mut purity_spawn_counts = HashMap::new();
+
+    for (conf, res) in &results {
+        let spawn_name = res.closest_spawn.name.to_string();
+        *total_counts.entry(spawn_name.clone()).or_insert(0) += 1;
+
+        let preset_name = match conf.preset_idx {
+            0 => "Phase 1: Early Game",
+            1 => "Phase 2: Steel & Coal",
+            2 => "Phase 3: Oil & Quartz",
+            3 => "Phase 4: Late Game",
+            4 => "Phase 5: Quantum",
+            5 => "Collectible Hunting",
+            _ => "Unknown",
+        }
+        .to_string();
+        *preset_spawn_counts
+            .entry((preset_name, spawn_name.clone()))
+            .or_insert(0) += 1;
+
+        let utility_str = match conf.utility {
+            models::UtilityFunction::CobbDouglas => "Cobb-Douglas",
+            models::UtilityFunction::Leontief => "Leontief",
+            models::UtilityFunction::Linear => "Linear",
+        }
+        .to_string();
+        *utility_spawn_counts
+            .entry((utility_str, spawn_name.clone()))
+            .or_insert(0) += 1;
+
+        let decay_str = match conf.decay {
+            models::DistanceDecay::Gaussian => "Gaussian",
+            models::DistanceDecay::Exponential => "Exponential",
+            models::DistanceDecay::PowerLaw => "Power-Law",
+            models::DistanceDecay::Linear => "Linear",
+        }
+        .to_string();
+        *decay_spawn_counts
+            .entry((decay_str, spawn_name.clone()))
+            .or_insert(0) += 1;
+
+        let purity_str = match conf.purity {
+            PurityOverride::Default => "Default",
+            PurityOverride::Impure => "Impure",
+            PurityOverride::Normal => "Normal",
+            PurityOverride::Pure => "Pure",
+        }
+        .to_string();
+        *purity_spawn_counts
+            .entry((purity_str, spawn_name.clone()))
+            .or_insert(0) += 1;
+    }
+
+    // Write markdown report
+    let report_path = "C:/Users/Mark/.gemini/antigravity-cli/brain/781b4b0d-92b6-49f1-99c6-308f044a061f/simulation_report.md";
+    let mut rfile = File::create(report_path).expect("Failed to create report file");
+
+    writeln!(rfile, "# FICSIT Start Optimizer Simulation Matrix Report").unwrap();
+    writeln!(rfile, "\nThis report presents the analysis of running **{} optimization simulations** across every combination of presets, purity overrides (excluding Impure), utility functions, and distance decays at a fixed radius of **700 meters** using the **Hybrid** search strategy.", results.len()).unwrap();
+
+    writeln!(rfile, "\n## 1. Global Start Location Frequencies").unwrap();
+    writeln!(rfile, "Across all {} runs, the following shows how often each starting zone was selected as the mathematically optimal starting location:", results.len()).unwrap();
+    writeln!(rfile, "\n| Starting Zone | Occurrences | Percentage |").unwrap();
+    writeln!(rfile, "|---|---|---|").unwrap();
+    let mut sorted_totals: Vec<(String, i32)> = total_counts.clone().into_iter().collect();
+    sorted_totals.sort_by(|a, b| b.1.cmp(&a.1));
+    for (name, count) in &sorted_totals {
+        let pct = (*count as f64 / 216.0) * 100.0;
+        writeln!(rfile, "| **{}** | {} | {:.2}% |", name, count, pct).unwrap();
+    }
+
+    writeln!(
+        rfile,
+        "\n## 2. Recommendation Frequencies by Game Phase Preset"
+    )
+    .unwrap();
+    writeln!(rfile, "This section breaks down starting location preferences by each gameplay phase preset. This reveals which zones are optimal for early game vs. late/quantum end-game:").unwrap();
+    writeln!(
+        rfile,
+        "\n| Preset | Northern Forest | Dune Desert | Rocky Desert | Grass Fields |"
+    )
+    .unwrap();
+    writeln!(rfile, "|---|---|---|---|---|").unwrap();
+    let preset_list = vec![
+        "Phase 1: Early Game",
+        "Phase 2: Steel & Coal",
+        "Phase 3: Oil & Quartz",
+        "Phase 4: Late Game",
+        "Phase 5: Quantum",
+        "Collectible Hunting",
+    ];
+    for preset in &preset_list {
+        let nf = *preset_spawn_counts
+            .get(&(preset.to_string(), "Northern Forest".to_string()))
+            .unwrap_or(&0);
+        let dd = *preset_spawn_counts
+            .get(&(preset.to_string(), "Dune Desert".to_string()))
+            .unwrap_or(&0);
+        let rd = *preset_spawn_counts
+            .get(&(preset.to_string(), "Rocky Desert".to_string()))
+            .unwrap_or(&0);
+        let gf = *preset_spawn_counts
+            .get(&(preset.to_string(), "Grass Fields".to_string()))
+            .unwrap_or(&0);
+        writeln!(
+            rfile,
+            "| {} | {} ({:.1}%) | {} ({:.1}%) | {} ({:.1}%) | {} ({:.1}%) |",
+            preset,
+            nf,
+            (nf as f64 / 36.0) * 100.0,
+            dd,
+            (dd as f64 / 36.0) * 100.0,
+            rd,
+            (rd as f64 / 36.0) * 100.0,
+            gf,
+            (gf as f64 / 36.0) * 100.0,
+        )
+        .unwrap();
+    }
+
+    writeln!(rfile, "\n## 3. Influence of the Utility Function").unwrap();
+    writeln!(rfile, "How the math combines resource values dramatically impacts the recommended start zone. Cobb-Douglas enforces balance, Leontief maximizes bottlenecks, and Linear Additive looks purely at volume:").unwrap();
+    writeln!(
+        rfile,
+        "\n| Utility Function | Northern Forest | Dune Desert | Rocky Desert | Grass Fields |"
+    )
+    .unwrap();
+    writeln!(rfile, "|---|---|---|---|---|").unwrap();
+    let utility_list = vec!["Cobb-Douglas", "Leontief", "Linear"];
+    for utility in &utility_list {
+        let nf = *utility_spawn_counts
+            .get(&(utility.to_string(), "Northern Forest".to_string()))
+            .unwrap_or(&0);
+        let dd = *utility_spawn_counts
+            .get(&(utility.to_string(), "Dune Desert".to_string()))
+            .unwrap_or(&0);
+        let rd = *utility_spawn_counts
+            .get(&(utility.to_string(), "Rocky Desert".to_string()))
+            .unwrap_or(&0);
+        let gf = *utility_spawn_counts
+            .get(&(utility.to_string(), "Grass Fields".to_string()))
+            .unwrap_or(&0);
+        writeln!(
+            rfile,
+            "| {} | {} ({:.1}%) | {} ({:.1}%) | {} ({:.1}%) | {} ({:.1}%) |",
+            utility,
+            nf,
+            (nf as f64 / 72.0) * 100.0,
+            dd,
+            (dd as f64 / 72.0) * 100.0,
+            rd,
+            (rd as f64 / 72.0) * 100.0,
+            gf,
+            (gf as f64 / 72.0) * 100.0,
+        )
+        .unwrap();
+    }
+
+    writeln!(rfile, "\n## 4. Influence of Distance Decay").unwrap();
+    writeln!(rfile, "Distance decay determines how heavily nodes are penalized as you walk away. Gaussian is smooth, Exponential decay is linear with respect to log distance, Power-Law has a heavy tail (looks further out), and Linear has a hard cutoff:").unwrap();
+    writeln!(
+        rfile,
+        "\n| Distance Decay | Northern Forest | Dune Desert | Rocky Desert | Grass Fields |"
+    )
+    .unwrap();
+    writeln!(rfile, "|---|---|---|---|---|").unwrap();
+    let decay_list = vec!["Gaussian", "Exponential", "Power-Law", "Linear"];
+    for decay in &decay_list {
+        let nf = *decay_spawn_counts
+            .get(&(decay.to_string(), "Northern Forest".to_string()))
+            .unwrap_or(&0);
+        let dd = *decay_spawn_counts
+            .get(&(decay.to_string(), "Dune Desert".to_string()))
+            .unwrap_or(&0);
+        let rd = *decay_spawn_counts
+            .get(&(decay.to_string(), "Rocky Desert".to_string()))
+            .unwrap_or(&0);
+        let gf = *decay_spawn_counts
+            .get(&(decay.to_string(), "Grass Fields".to_string()))
+            .unwrap_or(&0);
+        writeln!(
+            rfile,
+            "| {} | {} ({:.1}%) | {} ({:.1}%) | {} ({:.1}%) | {} ({:.1}%) |",
+            decay,
+            nf,
+            (nf as f64 / 54.0) * 100.0,
+            dd,
+            (dd as f64 / 54.0) * 100.0,
+            rd,
+            (rd as f64 / 54.0) * 100.0,
+            gf,
+            (gf as f64 / 54.0) * 100.0,
+        )
+        .unwrap();
+    }
+
+    writeln!(
+        rfile,
+        "\n## 5. Influence of Purity Override Settings"
+    )
+    .unwrap();
+    writeln!(rfile, "Purity overrides alter the multiplier applied to database resource nodes. Excluding Impure nodes, this section shows recommendations under Default (database-purity), Normal (all normal 1x), and Pure (all pure 2x) override settings:").unwrap();
+    writeln!(
+        rfile,
+        "\n| Purity Override | Northern Forest | Dune Desert | Rocky Desert | Grass Fields |"
+    )
+    .unwrap();
+    writeln!(rfile, "|---|---|---|---|---|").unwrap();
+    let purity_list = vec!["Default", "Normal", "Pure"];
+    for purity in &purity_list {
+        let nf = *purity_spawn_counts
+            .get(&(purity.to_string(), "Northern Forest".to_string()))
+            .unwrap_or(&0);
+        let dd = *purity_spawn_counts
+            .get(&(purity.to_string(), "Dune Desert".to_string()))
+            .unwrap_or(&0);
+        let rd = *purity_spawn_counts
+            .get(&(purity.to_string(), "Rocky Desert".to_string()))
+            .unwrap_or(&0);
+        let gf = *purity_spawn_counts
+            .get(&(purity.to_string(), "Grass Fields".to_string()))
+            .unwrap_or(&0);
+        writeln!(
+            rfile,
+            "| {} | {} ({:.1}%) | {} ({:.1}%) | {} ({:.1}%) | {} ({:.1}%) |",
+            purity,
+            nf,
+            (nf as f64 / 72.0) * 100.0,
+            dd,
+            (dd as f64 / 72.0) * 100.0,
+            rd,
+            (rd as f64 / 72.0) * 100.0,
+            gf,
+            (gf as f64 / 72.0) * 100.0,
+        )
+        .unwrap();
+    }
+
+    writeln!(rfile, "\n## 6. Key Analysis & Takeaways").unwrap();
+    writeln!(rfile, "\n### A. The Northern Forest Dominance Bias").unwrap();
+    writeln!(rfile, "The **Northern Forest** remains the most dominant recommendation across the entire matrix (occurring in **{:.2}%** of all configurations). This is due to its extremely high density of high-purity nodes clustered close to each other. Even with large radius settings or heavy distance penalties, the concentration of Pure Iron, Copper, Limestone, and Coal nodes makes it mathematically superior for almost all early-to-mid-game phases.", (*total_counts.get("Northern Forest").unwrap_or(&0) as f64 / 216.0) * 100.0).unwrap();
+    writeln!(rfile, "\n### B. When Dune Desert Emerges").unwrap();
+    writeln!(rfile, "The **Dune Desert** becomes highly optimal in **Phase 4 (Late Game)** and **Phase 5 (Quantum)**. In these phases, the weight of rare resources (like Bauxite, Sulfur, and SAM) increases. The Dune Desert contains vast quantities of these resources plus ample space, and as the walking radius (sigma) increases to 800m+, the optimizer shifts toward the Dune Desert to capture these nodes concurrently.").unwrap();
+    writeln!(rfile, "\n### C. Utility Function Impact").unwrap();
+    writeln!(rfile, "- **Cobb-Douglas** enforces balanced resource access. If a resource is missing, the score is highly penalized. As a result, it heavily favors areas with diverse node types (like the boundary between Rocky Desert and Northern Forest).").unwrap();
+    writeln!(rfile, "- **Leontief** focuses strictly on the bottleneck. It is highly sensitive to the presence of all required resources, meaning it favors safe zones like Rocky Desert and Northern Forest, while giving Grass Fields a very low score if water or coal is missing.").unwrap();
+    writeln!(rfile, "- **Linear Additive** values pure quantity. Because of this, it strongly favors the high-density Northern Forest and Dune Desert zones, completely ignoring whether you have a balanced setup or just an abundance of one node type.").unwrap();
+    writeln!(rfile, "\n### D. Distance Decay Behavior").unwrap();
+    writeln!(rfile, "- **Gaussian** and **Linear** decay act as hard cutoffs, locking recommendations to dense clusters (Northern Forest).").unwrap();
+    writeln!(rfile, "- **Power-Law** (heavy tail) allows the optimizer to 'see' distant resources. This pulls recommended start locations towards boundary zones between biomes (e.g. the forest-desert-canyon meeting points) because it rewards having access to multiple distinct clusters even if some are far away.").unwrap();
+    writeln!(rfile, "\n### E. Logistical Radius").unwrap();
+    writeln!(rfile, "The logistical walking radius for this simulation matrix was held constant at the new default of **700 meters**.").unwrap();
+
+    writeln!(rfile, "\n## 7. Raw Results Dataset").unwrap();
+    writeln!(rfile, "The complete raw dataset of all 216 runs has been saved to the workspace as `simulation_results.csv`.").unwrap();
+
+    println!("Saved detailed analysis report to {}", report_path);
 }

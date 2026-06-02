@@ -683,6 +683,12 @@ fn grid_search_refine(
         }
     }
 
+    if start_candidates.is_empty() {
+        for spawn in DEFAULT_SPAWNS {
+            start_candidates.push((spawn.x, spawn.y, 0.0));
+        }
+    }
+
     let refined_results: Vec<OptimizationResult> = start_candidates
         .into_par_iter()
         .map(|(start_x, start_y, _)| {

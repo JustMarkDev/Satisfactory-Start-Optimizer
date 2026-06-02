@@ -310,7 +310,7 @@ impl Default for OptimizerConfig {
         weights.insert("harddrive".to_string(), 0.15);
         
         Self {
-            sigma: 600.0,
+            sigma: 700.0,
             weights,
             purity_override: PurityOverride::Default,
             strategy: SearchStrategy::Hybrid,
