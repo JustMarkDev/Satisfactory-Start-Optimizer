@@ -1,2 +1,3 @@
 /target
-/scratch
+/node_modules
+/dist

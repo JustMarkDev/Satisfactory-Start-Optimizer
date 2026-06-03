@@ -89,17 +89,17 @@ impl GamePhase {
                 weights.insert("coal".to_string(), 0.2);
                 weights.insert("caterium".to_string(), 0.2); // M.A.M. research value
                 weights.insert("uranium".to_string(), -2.0); // severe radiation penalty (no hazmat suit)
-                weights.insert("blueslug".to_string(), 0.10);
-                weights.insert("yellowslug".to_string(), 0.15);
-                weights.insert("purpleslug".to_string(), 0.20);
-                weights.insert("mercer".to_string(), 0.15);
-                weights.insert("somersloop".to_string(), 0.15);
-                weights.insert("harddrive".to_string(), 0.25);
-                weights.insert("paleberry".to_string(), 0.10);
-                weights.insert("berylnut".to_string(), 0.08);
-                weights.insert("baconagaric".to_string(), 0.12);
-                weights.insert("sporeflower".to_string(), -0.01);
-                weights.insert("gaspillar".to_string(), -0.02);
+                weights.insert("blueslug".to_string(), 0.01);
+                weights.insert("yellowslug".to_string(), 0.02);
+                weights.insert("purpleslug".to_string(), 0.03);
+                weights.insert("mercer".to_string(), 0.02);
+                weights.insert("somersloop".to_string(), 0.02);
+                weights.insert("harddrive".to_string(), 0.05);
+                weights.insert("paleberry".to_string(), 0.0);
+                weights.insert("berylnut".to_string(), 0.0);
+                weights.insert("baconagaric".to_string(), 0.0);
+                weights.insert("sporeflower".to_string(), -0.005);
+                weights.insert("gaspillar".to_string(), -0.01);
             }
             GamePhase::Phase2 => {
                 weights.insert("iron".to_string(), 1.0);
@@ -113,17 +113,17 @@ impl GamePhase {
                 // Crystal Oscillators for Computers (Tier 4) need quartz
                 weights.insert("quartz".to_string(), 0.2);
                 weights.insert("uranium".to_string(), -2.0); // radiation penalty (no hazmat suit)
-                weights.insert("blueslug".to_string(), 0.08);
-                weights.insert("yellowslug".to_string(), 0.12);
-                weights.insert("purpleslug".to_string(), 0.18);
-                weights.insert("mercer".to_string(), 0.12);
-                weights.insert("somersloop".to_string(), 0.12);
-                weights.insert("harddrive".to_string(), 0.20);
-                weights.insert("paleberry".to_string(), 0.08);
-                weights.insert("berylnut".to_string(), 0.06);
-                weights.insert("baconagaric".to_string(), 0.10);
-                weights.insert("sporeflower".to_string(), -0.008);
-                weights.insert("gaspillar".to_string(), -0.015);
+                weights.insert("blueslug".to_string(), 0.01);
+                weights.insert("yellowslug".to_string(), 0.02);
+                weights.insert("purpleslug".to_string(), 0.03);
+                weights.insert("mercer".to_string(), 0.02);
+                weights.insert("somersloop".to_string(), 0.02);
+                weights.insert("harddrive".to_string(), 0.05);
+                weights.insert("paleberry".to_string(), 0.0);
+                weights.insert("berylnut".to_string(), 0.0);
+                weights.insert("baconagaric".to_string(), 0.0);
+                weights.insert("sporeflower".to_string(), -0.004);
+                weights.insert("gaspillar".to_string(), -0.008);
             }
             GamePhase::Phase3 => {
                 weights.insert("iron".to_string(), 0.8);
@@ -139,17 +139,17 @@ impl GamePhase {
                 // Forward-looking: aluminium R&D begins transitioning here
                 weights.insert("bauxite".to_string(), 0.3);
                 weights.insert("uranium".to_string(), -2.0); // radiation penalty (no hazmat suit yet)
-                weights.insert("blueslug".to_string(), 0.05);
-                weights.insert("yellowslug".to_string(), 0.08);
-                weights.insert("purpleslug".to_string(), 0.12);
-                weights.insert("mercer".to_string(), 0.10);
-                weights.insert("somersloop".to_string(), 0.10);
-                weights.insert("harddrive".to_string(), 0.15);
-                weights.insert("paleberry".to_string(), 0.05);
-                weights.insert("berylnut".to_string(), 0.04);
-                weights.insert("baconagaric".to_string(), 0.06);
-                weights.insert("sporeflower".to_string(), -0.004);
-                weights.insert("gaspillar".to_string(), -0.008);
+                weights.insert("blueslug".to_string(), 0.005);
+                weights.insert("yellowslug".to_string(), 0.01);
+                weights.insert("purpleslug".to_string(), 0.015);
+                weights.insert("mercer".to_string(), 0.01);
+                weights.insert("somersloop".to_string(), 0.01);
+                weights.insert("harddrive".to_string(), 0.03);
+                weights.insert("paleberry".to_string(), 0.0);
+                weights.insert("berylnut".to_string(), 0.0);
+                weights.insert("baconagaric".to_string(), 0.0);
+                weights.insert("sporeflower".to_string(), -0.002);
+                weights.insert("gaspillar".to_string(), -0.004);
             }
             GamePhase::Phase4 => {
                 weights.insert("iron".to_string(), 0.6);
@@ -167,17 +167,17 @@ impl GamePhase {
                 // Nuclear power is the primary goal at Tier 7-8; player has hazmat suit
                 weights.insert("uranium".to_string(), 0.6);
                 weights.insert("sam".to_string(), 0.6);
-                weights.insert("blueslug".to_string(), 0.05);
-                weights.insert("yellowslug".to_string(), 0.08);
-                weights.insert("purpleslug".to_string(), 0.12);
-                weights.insert("mercer".to_string(), 0.10);
-                weights.insert("somersloop".to_string(), 0.10);
-                weights.insert("harddrive".to_string(), 0.15);
-                weights.insert("paleberry".to_string(), 0.02);
-                weights.insert("berylnut".to_string(), 0.02);
-                weights.insert("baconagaric".to_string(), 0.02);
-                weights.insert("sporeflower".to_string(), -0.001);
-                weights.insert("gaspillar".to_string(), -0.002);
+                weights.insert("blueslug".to_string(), 0.005);
+                weights.insert("yellowslug".to_string(), 0.01);
+                weights.insert("purpleslug".to_string(), 0.015);
+                weights.insert("mercer".to_string(), 0.01);
+                weights.insert("somersloop".to_string(), 0.01);
+                weights.insert("harddrive".to_string(), 0.03);
+                weights.insert("paleberry".to_string(), 0.0);
+                weights.insert("berylnut".to_string(), 0.0);
+                weights.insert("baconagaric".to_string(), 0.0);
+                weights.insert("sporeflower".to_string(), -0.0005);
+                weights.insert("gaspillar".to_string(), -0.001);
             }
             GamePhase::Phase5 => {
                 weights.insert("iron".to_string(), 0.5);
@@ -195,17 +195,17 @@ impl GamePhase {
                 // Ficsonium production requires uranium; player has hazmat suit at this stage
                 weights.insert("uranium".to_string(), 0.5);
                 weights.insert("sam".to_string(), 1.0); // Quantum / Ficsonium focus
-                weights.insert("blueslug".to_string(), 0.03);
-                weights.insert("yellowslug".to_string(), 0.05);
-                weights.insert("purpleslug".to_string(), 0.08);
-                weights.insert("mercer".to_string(), 0.05);
-                weights.insert("somersloop".to_string(), 0.05);
-                weights.insert("harddrive".to_string(), 0.10);
-                weights.insert("paleberry".to_string(), 0.01);
-                weights.insert("berylnut".to_string(), 0.01);
-                weights.insert("baconagaric".to_string(), 0.01);
-                weights.insert("sporeflower".to_string(), -0.0005);
-                weights.insert("gaspillar".to_string(), -0.001);
+                weights.insert("blueslug".to_string(), 0.003);
+                weights.insert("yellowslug".to_string(), 0.005);
+                weights.insert("purpleslug".to_string(), 0.008);
+                weights.insert("mercer".to_string(), 0.005);
+                weights.insert("somersloop".to_string(), 0.005);
+                weights.insert("harddrive".to_string(), 0.02);
+                weights.insert("paleberry".to_string(), 0.0);
+                weights.insert("berylnut".to_string(), 0.0);
+                weights.insert("baconagaric".to_string(), 0.0);
+                weights.insert("sporeflower".to_string(), -0.0002);
+                weights.insert("gaspillar".to_string(), -0.0005);
             }
         }
     }
@@ -229,32 +229,37 @@ pub struct SpawnLocation {
     pub name: &'static str,
     pub x: f64,
     pub y: f64,
+    pub radius: f64,
     pub description: &'static str,
 }
 
 pub static DEFAULT_SPAWNS: &[SpawnLocation] = &[
     SpawnLocation {
         name: "Grass Fields",
-        x: -110000.0,
+        x: -50000.0,
         y: 240000.0,
+        radius: 800.0,
         description: "Spacious, flat, mostly impure/normal nodes. Perfect for learning logistics.",
     },
     SpawnLocation {
         name: "Rocky Desert",
-        x: -200000.0,
-        y: -200000.0,
+        x: -220000.0,
+        y: -35000.0,
+        radius: 800.0,
         description: "Balanced, flat, and spacious. Reliable access to iron, copper, and limestone.",
     },
     SpawnLocation {
         name: "Northern Forest",
-        x: 0.0,
+        x: 50000.0,
         y: -90000.0,
+        radius: 800.0,
         description: "Lush, dense, and vertical. Exceptionally high density of Pure resource nodes.",
     },
     SpawnLocation {
         name: "Dune Desert",
-        x: 240000.0,
-        y: -210000.0,
+        x: 300000.0,
+        y: -175000.0,
+        radius: 1200.0,
         description: "Sprawling desert sand dunes. Tons of normal nodes but very sparse water and biomass.",
     },
 ];

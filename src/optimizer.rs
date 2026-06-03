@@ -77,8 +77,11 @@ impl SpatialGrid {
     }
 }
 
-/// Helper to calculate distance in meters from (x, y) coordinate to the nearest water body.
-/// Satisfactory map has several prominent static lakes/oceans, plus any dynamic water wells.
+/// Helper that calculates the minimum distance in metres from (x, y) to any
+/// static water body. The old "coast edge" approximations (e.g. x < -250000 → dist=0)
+/// have been REMOVED: those regions are the map's impassable mountain walls, not
+/// accessible ocean. Treating them as free water caused the optimizer to inflate
+/// scores at the western/northern map boundary and produce border-edge results.
 fn distance_to_nearest_water(
     x: f64,
     y: f64,
@@ -87,17 +90,13 @@ fn distance_to_nearest_water(
 ) -> f64 {
     let mut min_dist_cm = f64::MAX;
 
-    // Major static bodies of water in Satisfactory (centers and bounding boxes)
-    // Major static bodies of water in Satisfactory (centres, half-widths)
-    // Coordinates are in Unreal units (cm). Add Dune Desert small ponds to ensure
-    // water weight has effect in that biome for Phase 3 oil refinery chains.
+    // Major static bodies of water in Satisfactory (centres, half-widths, in cm)
     let water_bodies = [
         (140000.0, 230000.0, 80000.0, 60000.0), // Great Blue Crater Lake (South-East)
         (-70000.0, -145000.0, 60000.0, 70000.0), // Crater Lakes / Coal Lakes (Northern Forest)
         (-60000.0, 65000.0, 80000.0, 70000.0),  // Red Jungle Lakes
         (45000.0, -20000.0, 30000.0, 30000.0),  // Lake Forest Lake
         (350000.0, 225000.0, 140000.0, 150000.0), // Eastern Swamp Lakes
-        // Dune Desert oil-field ponds (southern Dune Desert, near oil nodes)
         (310000.0, -185000.0, 25000.0, 20000.0), // Southern Dune Desert pond cluster
         (290000.0, -230000.0, 20000.0, 15000.0), // Far-south Dune Desert pond
         (355000.0, -80000.0, 30000.0, 25000.0),  // Central-east Dune Desert oasis
@@ -118,28 +117,6 @@ fn distance_to_nearest_water(
         if dist < min_dist_cm {
             min_dist_cm = dist;
         }
-    }
-
-    // Check distances to ocean boundaries (West, North, East coasts)
-    if x < -250000.0 {
-        min_dist_cm = min_dist_cm.min(0.0);
-    } else {
-        min_dist_cm = min_dist_cm.min(x + 250000.0);
-    }
-    if y < -280000.0 {
-        min_dist_cm = min_dist_cm.min(0.0);
-    } else {
-        min_dist_cm = min_dist_cm.min(y + 280000.0);
-    }
-    if x > 380000.0 {
-        min_dist_cm = min_dist_cm.min(0.0);
-    } else {
-        min_dist_cm = min_dist_cm.min(380000.0 - x);
-    }
-    if y > 370000.0 {
-        min_dist_cm = min_dist_cm.min(0.0);
-    } else {
-        min_dist_cm = min_dist_cm.min(370000.0 - y);
     }
 
     let mut min_dist_m = min_dist_cm / 100.0;
@@ -232,6 +209,67 @@ fn estimate_altitude(
     }
 }
 
+/// World border polygon vertices (Satisfactory 1.0 playable area, in cm).
+/// Points outside this polygon are not valid base locations.
+const WORLD_BORDER: &[(f64, f64)] = &[
+    (-232400.0, -370000.0),
+    (450000.0, -370000.0),
+    (450000.0, -33000.0),
+    (192000.0, 335000.0),
+    (-237000.0, 335000.0),
+    (-341500.0, 96000.0),
+    (-341500.0, -313000.0),
+];
+
+/// Ray-casting point-in-polygon test.
+#[inline]
+fn is_in_world_border(x: f64, y: f64) -> bool {
+    let vs = WORLD_BORDER;
+    let n = vs.len();
+    let mut inside = false;
+    let mut j = n - 1;
+    for i in 0..n {
+        let (xi, yi) = vs[i];
+        let (xj, yj) = vs[j];
+        if ((yi > y) != (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi) {
+            inside = !inside;
+        }
+        j = i;
+    }
+    inside
+}
+
+/// Minimum distance from (x, y) to the nearest edge of the world border polygon (in cm).
+#[inline]
+fn dist_to_world_border_edge(x: f64, y: f64) -> f64 {
+    let vs = WORLD_BORDER;
+    let n = vs.len();
+    let mut min_dist = f64::MAX;
+    let mut j = n - 1;
+    for i in 0..n {
+        let (ax, ay) = vs[j];
+        let (bx, by) = vs[i];
+        let dx = bx - ax;
+        let dy = by - ay;
+        let len_sq = dx * dx + dy * dy;
+        let t = if len_sq > 0.0 {
+            (((x - ax) * dx + (y - ay) * dy) / len_sq).clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
+        let proj_x = ax + t * dx;
+        let proj_y = ay + t * dy;
+        let ddx = x - proj_x;
+        let ddy = y - proj_y;
+        let dist = (ddx * ddx + ddy * ddy).sqrt();
+        if dist < min_dist {
+            min_dist = dist;
+        }
+        j = i;
+    }
+    min_dist
+}
+
 /// Calculates the dynamic multi-resource Cobb-Douglas utility function at a coordinate (x, y)
 /// using spatial grid bucketing, KNN elevation, terrain flatness, water proximity, and radiation.
 fn calculate_utility(
@@ -246,6 +284,27 @@ fn calculate_utility(
     res_to_idx: &HashMap<String, usize>,
     waterwell_idx: Option<usize>,
 ) -> f64 {
+    // Reject points outside the playable world polygon
+    if !is_in_world_border(x, y) {
+        return 0.0;
+    }
+
+    // Border margin penalty: apply a soft penalty within 300 m of the polygon edge
+    // to prevent the optimizer locking onto border corners where the Cobb-Douglas
+    // epsilon floor creates false local maxima. 300 m is enough to push away from
+    // the actual polygon boundary while not affecting real interior areas (all
+    // starting zones are at least 1.2 km from the nearest polygon edge).
+    const BORDER_MARGIN_CM: f64 = 30_000.0; // 300 m
+    let border_dist = dist_to_world_border_edge(x, y);
+    let border_penalty = if border_dist < BORDER_MARGIN_CM {
+        (-4.0 * (1.0 - border_dist / BORDER_MARGIN_CM)).exp()
+    } else {
+        1.0
+    };
+    if border_penalty < 0.01 {
+        return 0.0;
+    }
+
     let radius = 3.5 * config.sigma;
     let radius_cm = radius * 100.0;
     let radius_m_sq = radius * radius;
@@ -464,8 +523,9 @@ fn calculate_utility(
             let dx = (x - spawn.x) / 100.0;
             let dy = (y - spawn.y) / 100.0;
             let d = (dx * dx + dy * dy).sqrt();
-            if d < min_spawn_dist_m {
-                min_spawn_dist_m = d;
+            let boundary_dist = (d - spawn.radius).max(0.0);
+            if boundary_dist < min_spawn_dist_m {
+                min_spawn_dist_m = boundary_dist;
             }
         }
         // Soft penalty: exp(-dist/tolerance). At dist=0 → 1.0; at dist=tol → e⁻¹ ≈ 0.37
@@ -473,7 +533,7 @@ fn calculate_utility(
         score *= spawn_penalty;
     }
 
-    score * flatness_mult
+    score * flatness_mult * border_penalty
 }
 
 /// Helper that runs hill climbing starting from a given coordinate (start_x, start_y)
@@ -926,7 +986,7 @@ fn grid_search_refine(
         })
         .collect();
 
-    top_n_results(refined_results, 5, 500_000.0 / 100.0) // 5 km min separation
+    top_n_results(refined_results, 3, 150_000.0 / 100.0) // 1.5 km min separation
 }
 
 /// Returns the top N unique results from a set of refined candidates,
@@ -1044,7 +1104,7 @@ fn optimize_fast(ctx: &SearchContext, config: &OptimizerConfig) -> Vec<Optimizat
         })
         .collect();
 
-    top_n_results(refined_results, 5, 500_000.0 / 100.0)
+    top_n_results(refined_results, 3, 150_000.0 / 100.0)
 }
 
 /// Returns up to 5 geographically distinct optimal starting locations, ranked by score.
@@ -1065,36 +1125,36 @@ mod tests {
     #[test]
     fn test_ignore_spawns() {
         let nodes = vec![
-            // Weak nodes near Grass Fields (-110000, 240000)
+            // Weak nodes near Grass Fields (-50000, 240000)
             ResourceNode {
                 resource_type: "iron".to_string(),
                 purity: Purity::Impure,
-                x: -110000.0,
+                x: -50000.0,
                 y: 240000.0,
                 z: 0.0,
                 obstructed: false,
             },
-            // Rich nodes far away (300000, 300000)
+            // Rich nodes far away near eastern Dune Desert (350000, -200000)
             ResourceNode {
                 resource_type: "iron".to_string(),
                 purity: Purity::Pure,
-                x: 300000.0,
-                y: 300000.0,
+                x: 350000.0,
+                y: -200000.0,
                 z: 0.0,
                 obstructed: false,
             },
             ResourceNode {
                 resource_type: "copper".to_string(),
                 purity: Purity::Pure,
-                x: 300000.0,
-                y: 300000.0,
+                x: 350000.0,
+                y: -200000.0,
                 z: 0.0,
                 obstructed: false,
             },
         ];
 
         // 1. With ignore_spawns = false (default), the proximity penalty should favor the Grass Fields node
-        // because the rich nodes at (300000, 300000) are too far from any spawn (>5km).
+        // because the rich nodes at (350000, -200000) are too far from any spawn (>5km).
         let mut config_constrained = OptimizerConfig::default();
         config_constrained.game_phase = GamePhase::Phase1;
         config_constrained.ignore_spawns = false;
@@ -1103,7 +1163,7 @@ mod tests {
         assert!(!results_constrained.is_empty());
         let best_constrained = &results_constrained[0];
         
-        // 2. With ignore_spawns = true, it should pick the rich cluster at (300000, 300000)
+        // 2. With ignore_spawns = true, it should pick the rich cluster at (350000, -200000)
         let mut config_ignored = OptimizerConfig::default();
         config_ignored.game_phase = GamePhase::Phase1;
         config_ignored.ignore_spawns = true;
@@ -1112,11 +1172,11 @@ mod tests {
         assert!(!results_ignored.is_empty());
         let best_ignored = &results_ignored[0];
 
-        // The ignored version should find a position near the rich cluster (300000, 300000)
+        // The ignored version should find a position near the rich cluster (350000, -200000)
         // and its score should be much higher than the constrained version.
         assert!(best_ignored.score > best_constrained.score);
-        assert!((best_ignored.x - 300000.0).abs() < 50000.0);
-        assert!((best_ignored.y - 300000.0).abs() < 50000.0);
+        assert!((best_ignored.x - 350000.0).abs() < 50000.0);
+        assert!((best_ignored.y - (-200000.0)).abs() < 50000.0);
     }
 
     #[test]

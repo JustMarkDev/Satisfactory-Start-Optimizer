@@ -1,0 +1,14 @@
+{
+  "name": "satisfactory-start-optimizer-web",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "server": "cargo run --release -- --server 8080",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  }
+}

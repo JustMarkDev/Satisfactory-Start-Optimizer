@@ -1,6 +1,7 @@
 mod data_loader;
 mod models;
 mod optimizer;
+mod server;
 
 use models::{GamePhase, OptimizerConfig, PurityOverride};
 use std::collections::HashMap;
@@ -80,127 +81,11 @@ struct TuiState {
 fn apply_preset_weights(preset_idx: usize, weights: &mut HashMap<String, f64>) {
     weights.clear();
     match preset_idx {
-        0 => {
-            weights.insert("iron".to_string(), 1.0);
-            weights.insert("copper".to_string(), 0.8);
-            weights.insert("limestone".to_string(), 0.7);
-            weights.insert("coal".to_string(), 0.2); // forward-looking; unlocked at Tier 3
-            weights.insert("caterium".to_string(), 0.2); // M.A.M. research value
-            weights.insert("uranium".to_string(), -2.0); // severe penalty (no hazmat suit)
-            weights.insert("blueslug".to_string(), 0.10);
-            weights.insert("yellowslug".to_string(), 0.15);
-            weights.insert("purpleslug".to_string(), 0.20);
-            weights.insert("mercer".to_string(), 0.15);
-            weights.insert("somersloop".to_string(), 0.15);
-            weights.insert("harddrive".to_string(), 0.25);
-            weights.insert("paleberry".to_string(), 0.10);
-            weights.insert("berylnut".to_string(), 0.08);
-            weights.insert("baconagaric".to_string(), 0.12);
-            weights.insert("sporeflower".to_string(), -0.01);
-            weights.insert("gaspillar".to_string(), -0.02);
-        }
-        1 => {
-            weights.insert("iron".to_string(), 1.0);
-            weights.insert("copper".to_string(), 0.8);
-            weights.insert("limestone".to_string(), 0.7);
-            weights.insert("coal".to_string(), 1.0);
-            weights.insert("water".to_string(), 1.2);
-            weights.insert("caterium".to_string(), 0.4);
-            weights.insert("sulfur".to_string(), 0.3); // Black Powder (Nobelisk/ammo)
-            weights.insert("quartz".to_string(), 0.2); // Crystal Oscillators (Tier 4)
-            weights.insert("uranium".to_string(), -2.0); // radiation penalty (no hazmat suit)
-            weights.insert("blueslug".to_string(), 0.08);
-            weights.insert("yellowslug".to_string(), 0.12);
-            weights.insert("purpleslug".to_string(), 0.18);
-            weights.insert("mercer".to_string(), 0.12);
-            weights.insert("somersloop".to_string(), 0.12);
-            weights.insert("harddrive".to_string(), 0.20);
-            weights.insert("paleberry".to_string(), 0.08);
-            weights.insert("berylnut".to_string(), 0.06);
-            weights.insert("baconagaric".to_string(), 0.10);
-            weights.insert("sporeflower".to_string(), -0.008);
-            weights.insert("gaspillar".to_string(), -0.015);
-        }
-        2 => {
-            weights.insert("iron".to_string(), 0.8);
-            weights.insert("copper".to_string(), 0.8);
-            weights.insert("limestone".to_string(), 0.6);
-            weights.insert("coal".to_string(), 0.8);
-            weights.insert("water".to_string(), 0.9); // oil refinery chains are water-hungry
-            weights.insert("oil".to_string(), 1.0);
-            weights.insert("sulfur".to_string(), 0.6);
-            weights.insert("quartz".to_string(), 0.6);
-            weights.insert("caterium".to_string(), 0.6);
-            weights.insert("bauxite".to_string(), 0.3); // forward-looking aluminium R&D
-            weights.insert("uranium".to_string(), -2.0); // radiation penalty (no hazmat suit yet)
-            weights.insert("blueslug".to_string(), 0.05);
-            weights.insert("yellowslug".to_string(), 0.08);
-            weights.insert("purpleslug".to_string(), 0.12);
-            weights.insert("mercer".to_string(), 0.10);
-            weights.insert("somersloop".to_string(), 0.10);
-            weights.insert("harddrive".to_string(), 0.15);
-            weights.insert("paleberry".to_string(), 0.05);
-            weights.insert("berylnut".to_string(), 0.04);
-            weights.insert("baconagaric".to_string(), 0.06);
-            weights.insert("sporeflower".to_string(), -0.004);
-            weights.insert("gaspillar".to_string(), -0.008);
-        }
-        3 => {
-            weights.insert("iron".to_string(), 0.6);
-            weights.insert("copper".to_string(), 0.6);
-            weights.insert("limestone".to_string(), 0.5);
-            weights.insert("coal".to_string(), 0.6);
-            weights.insert("water".to_string(), 1.2);
-            weights.insert("oil".to_string(), 0.8);
-            weights.insert("sulfur".to_string(), 0.8);
-            weights.insert("quartz".to_string(), 0.8);
-            weights.insert("caterium".to_string(), 0.8);
-            weights.insert("bauxite".to_string(), 1.0);
-            weights.insert("nitrogenwell".to_string(), 0.8);
-            weights.insert("geyser".to_string(), 0.8);
-            // Nuclear power is primary at Tier 7-8; player has hazmat suit
-            weights.insert("uranium".to_string(), 0.6);
-            weights.insert("sam".to_string(), 0.6);
-            weights.insert("blueslug".to_string(), 0.05);
-            weights.insert("yellowslug".to_string(), 0.08);
-            weights.insert("purpleslug".to_string(), 0.12);
-            weights.insert("mercer".to_string(), 0.10);
-            weights.insert("somersloop".to_string(), 0.10);
-            weights.insert("harddrive".to_string(), 0.15);
-            weights.insert("paleberry".to_string(), 0.02);
-            weights.insert("berylnut".to_string(), 0.02);
-            weights.insert("baconagaric".to_string(), 0.02);
-            weights.insert("sporeflower".to_string(), -0.001);
-            weights.insert("gaspillar".to_string(), -0.002);
-        }
-        4 => {
-            weights.insert("iron".to_string(), 0.5);
-            weights.insert("copper".to_string(), 0.5);
-            weights.insert("limestone".to_string(), 0.4);
-            weights.insert("coal".to_string(), 0.5);
-            weights.insert("water".to_string(), 0.5);
-            weights.insert("oil".to_string(), 0.7);
-            weights.insert("sulfur".to_string(), 0.8);
-            weights.insert("quartz".to_string(), 0.8);
-            weights.insert("caterium".to_string(), 0.8);
-            weights.insert("bauxite".to_string(), 0.8);
-            weights.insert("nitrogenwell".to_string(), 0.8);
-            weights.insert("geyser".to_string(), 0.8);
-            // Ficsonium requires uranium; player has hazmat suit
-            weights.insert("uranium".to_string(), 0.5);
-            weights.insert("sam".to_string(), 1.0);
-            weights.insert("blueslug".to_string(), 0.03);
-            weights.insert("yellowslug".to_string(), 0.05);
-            weights.insert("purpleslug".to_string(), 0.08);
-            weights.insert("mercer".to_string(), 0.05);
-            weights.insert("somersloop".to_string(), 0.05);
-            weights.insert("harddrive".to_string(), 0.10);
-            weights.insert("paleberry".to_string(), 0.01);
-            weights.insert("berylnut".to_string(), 0.01);
-            weights.insert("baconagaric".to_string(), 0.01);
-            weights.insert("sporeflower".to_string(), -0.0005);
-            weights.insert("gaspillar".to_string(), -0.001);
-        }
+        0 => models::GamePhase::Phase1.apply_weights(weights),
+        1 => models::GamePhase::Phase2.apply_weights(weights),
+        2 => models::GamePhase::Phase3.apply_weights(weights),
+        3 => models::GamePhase::Phase4.apply_weights(weights),
+        4 => models::GamePhase::Phase5.apply_weights(weights),
         5 => {
             weights.insert("blueslug".to_string(), 0.3);
             weights.insert("yellowslug".to_string(), 0.8);
@@ -233,17 +118,17 @@ fn default_nonzero_weight(res: &str) -> f64 {
         "nitrogenwell" => 0.8,
         "waterwell" => 0.8,
         "geyser" => 0.8,
-        "blueslug" => 0.1,
-        "yellowslug" => 0.15,
-        "purpleslug" => 0.2,
-        "mercer" => 0.15,
-        "somersloop" => 0.15,
-        "harddrive" => 0.25,
-        "paleberry" => 0.05,
-        "berylnut" => 0.05,
-        "baconagaric" => 0.05,
-        "sporeflower" => -0.008,
-        "gaspillar" => -0.015,
+        "blueslug" => 0.01,
+        "yellowslug" => 0.02,
+        "purpleslug" => 0.03,
+        "mercer" => 0.02,
+        "somersloop" => 0.02,
+        "harddrive" => 0.05,
+        "paleberry" => 0.002,
+        "berylnut" => 0.001,
+        "baconagaric" => 0.003,
+        "sporeflower" => -0.004,
+        "gaspillar" => -0.008,
         _ => 1.0,
     }
 }
@@ -264,29 +149,29 @@ fn draw_ascii_map(
     let spawns = [
         (
             "Grass Fields",
-            -110000.0,
+            -50000.0,
             240000.0,
             Color::Rgb(34, 139, 34),
             ".",
         ),
         (
             "Rocky Desert",
-            -200000.0,
-            -200000.0,
+            -220000.0,
+            -35000.0,
             Color::Rgb(210, 180, 140),
             "-",
         ),
         (
             "Northern Forest",
-            0.0,
+            50000.0,
             -90000.0,
             Color::Rgb(46, 139, 87),
             "*",
         ),
         (
             "Dune Desert",
-            240000.0,
-            -210000.0,
+            300000.0,
+            -175000.0,
             Color::Rgb(244, 164, 96),
             "~",
         ),
@@ -650,11 +535,11 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                 let padded_name = format!("{:<12}", res);
 
                 let weight_span = if val < 0.0 {
-                    Span::styled(format!("{:.1}", val), Style::default().fg(Color::Rgb(255, 69, 0)).add_modifier(Modifier::BOLD))
+                    Span::styled(format!("{:.2}", val), Style::default().fg(Color::Rgb(255, 69, 0)).add_modifier(Modifier::BOLD))
                 } else if is_enabled {
-                    Span::styled(format!("{:.1}", val), Style::default().fg(res_color))
+                    Span::styled(format!("{:.2}", val), Style::default().fg(res_color))
                 } else {
-                    Span::styled("0.0", Style::default().fg(Color::Rgb(128, 128, 128)))
+                    Span::styled("0.00", Style::default().fg(Color::Rgb(128, 128, 128)))
                 };
 
                 left_lines.push(Line::from(vec![
@@ -1121,8 +1006,8 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                         {
                             let res_name = CONFIGURABLE_RESOURCES[state.selected_option - 7];
                             let val = weights.entry(res_name.to_string()).or_insert(0.0);
-                            *val = (*val - 0.1).clamp(-10.0, 10.0);
-                            *val = (*val * 10.0).round() / 10.0;
+                            *val = (*val - 0.05).clamp(-10.0, 10.0);
+                            *val = (*val * 20.0).round() / 20.0;
                             if *val != 0.0 {
                                 last_nonzero_weights.insert(res_name.to_string(), *val);
                             }
@@ -1212,8 +1097,8 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                         {
                             let res_name = CONFIGURABLE_RESOURCES[state.selected_option - 7];
                             let val = weights.entry(res_name.to_string()).or_insert(0.0);
-                            *val = (*val + 0.1).clamp(-10.0, 10.0);
-                            *val = (*val * 10.0).round() / 10.0;
+                            *val = (*val + 0.05).clamp(-10.0, 10.0);
+                            *val = (*val * 20.0).round() / 20.0;
                             if *val != 0.0 {
                                 last_nonzero_weights.insert(res_name.to_string(), *val);
                             }
@@ -1333,6 +1218,7 @@ Options:
                        Select distance decay function (default: gaussian)
   --collectibles       Focus search purely on slugs, drop pods, and alien artifacts
   --ignore-spawns      Ignore distance to starting areas when optimizing
+  --server [port]      Start the HTTP API server on port (default: 8080)
   --json               Output only raw JSON configuration and results
   --<resource> <w>     Dynamic weight of any resource type (e.g. --iron 1.5, --uranium -2.0)
   --help               Show this help menu
@@ -1356,6 +1242,8 @@ fn main() {
     let mut is_collectibles_mode = false;
     let mut output_json = false;
     let mut run_simulation = false;
+    let mut run_server = false;
+    let mut server_port: u16 = 8080;
 
     // Parse command line arguments
     let mut i = 1;
@@ -1495,6 +1383,20 @@ fn main() {
                 config.ignore_spawns = true;
                 i += 1;
             }
+            "--server" => {
+                run_server = true;
+                // Optional port number as next arg
+                if i + 1 < args.len() {
+                    if let Ok(port) = args[i + 1].parse::<u16>() {
+                        server_port = port;
+                        i += 2;
+                    } else {
+                        i += 1;
+                    }
+                } else {
+                    i += 1;
+                }
+            }
             "--json" => {
                 output_json = true;
                 i += 1;
@@ -1524,6 +1426,13 @@ fn main() {
                 return;
             }
         }
+    }
+
+    if run_server {
+        if let Err(e) = server::run_server(server_port) {
+            eprintln!("API Server error: {:?}", e);
+        }
+        return;
     }
 
     if run_simulation {
@@ -1573,7 +1482,7 @@ fn main() {
 
     let file_info = match &custom_file_path {
         Some(path) => path.clone(),
-        None => "Embedded Database (2372 nodes)".to_string(),
+        None => format!("Embedded Database ({} nodes)", nodes.len()),
     };
 
     let initial_preset_idx = if is_collectibles_mode {
@@ -1667,7 +1576,7 @@ fn run_full_simulation_matrix(nodes: &[models::ResourceNode]) {
                     4 => models::GamePhase::Phase5,
                     _ => models::GamePhase::Phase1,
                 },
-                ignore_spawns: false,
+                ignore_spawns: true,
             };
             apply_preset_weights(config.preset_idx, &mut opt_config.weights);
             // Simulation mode: take the single best result (#1 candidate) from the Vec
@@ -1800,7 +1709,7 @@ fn run_full_simulation_matrix(nodes: &[models::ResourceNode]) {
     let mut rfile = File::create(report_path).expect("Failed to create report file");
 
     writeln!(rfile, "# FICSIT Start Optimizer Simulation Matrix Report").unwrap();
-    writeln!(rfile, "\nThis report presents the analysis of running **{} optimization simulations** across every combination of presets, purity overrides (excluding Impure), utility functions, and distance decays at a fixed radius of **700 meters** using the **Hybrid** search strategy.", results.len()).unwrap();
+    writeln!(rfile, "\nThis report presents the analysis of running **{} optimization simulations** across every combination of presets, purity overrides (excluding Impure), utility functions, and distance decays at a fixed radius of **700 meters** using the **Hybrid** search strategy with spawn area constraints disabled (ignore spawns set to true).", results.len()).unwrap();
 
     writeln!(rfile, "\n## 1. Global Start Location Frequencies").unwrap();
     writeln!(rfile, "Across all {} runs, the following shows how often each starting zone was selected as the mathematically optimal starting location:", results.len()).unwrap();

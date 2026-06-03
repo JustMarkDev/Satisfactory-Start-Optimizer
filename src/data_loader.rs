@@ -4,7 +4,7 @@ use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
-const EMBEDDED_NODES: &str = include_str!("../data/complete-map-data.json");
+const EMBEDDED_NODES: &str = include_str!("../public/data/complete-map-data.json");
 
 #[derive(Debug, Deserialize)]
 #[allow(dead_code)]
