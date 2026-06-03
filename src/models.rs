@@ -300,6 +300,7 @@ pub struct OptimizerConfig {
     pub utility_func: UtilityFunction,
     pub decay_func: DistanceDecay,
     pub game_phase: GamePhase,
+    pub ignore_spawns: bool,
 }
 
 impl Default for OptimizerConfig {
@@ -333,6 +334,7 @@ impl Default for OptimizerConfig {
             utility_func: UtilityFunction::CobbDouglas,
             decay_func: DistanceDecay::Gaussian,
             game_phase: GamePhase::Phase1,
+            ignore_spawns: false,
         }
     }
 }

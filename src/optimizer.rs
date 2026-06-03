@@ -447,11 +447,15 @@ fn calculate_utility(
     //   Phase 2: 1500 m — lenient (player likely has a vehicle)
     //   Phase 3: 3000 m — relaxed (trains/trucks operational)
     //   Phase 4+: no penalty (helicopters, transport network established)
-    let spawn_tolerance_m: Option<f64> = match config.game_phase {
-        crate::models::GamePhase::Phase1 => Some(800.0),
-        crate::models::GamePhase::Phase2 => Some(1500.0),
-        crate::models::GamePhase::Phase3 => Some(3000.0),
-        crate::models::GamePhase::Phase4 | crate::models::GamePhase::Phase5 => None,
+    let spawn_tolerance_m: Option<f64> = if config.ignore_spawns {
+        None
+    } else {
+        match config.game_phase {
+            crate::models::GamePhase::Phase1 => Some(800.0),
+            crate::models::GamePhase::Phase2 => Some(1500.0),
+            crate::models::GamePhase::Phase3 => Some(3000.0),
+            crate::models::GamePhase::Phase4 | crate::models::GamePhase::Phase5 => None,
+        }
     };
 
     if let Some(tol) = spawn_tolerance_m {
@@ -1052,3 +1056,67 @@ pub fn optimize(nodes: &[ResourceNode], config: &OptimizerConfig) -> Vec<Optimiz
         crate::models::SearchStrategy::Slow => optimize_slow(&ctx, config),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::{Purity, ResourceNode, OptimizerConfig, GamePhase};
+
+    #[test]
+    fn test_ignore_spawns() {
+        let nodes = vec![
+            // Weak nodes near Grass Fields (-110000, 240000)
+            ResourceNode {
+                resource_type: "iron".to_string(),
+                purity: Purity::Impure,
+                x: -110000.0,
+                y: 240000.0,
+                z: 0.0,
+                obstructed: false,
+            },
+            // Rich nodes far away (300000, 300000)
+            ResourceNode {
+                resource_type: "iron".to_string(),
+                purity: Purity::Pure,
+                x: 300000.0,
+                y: 300000.0,
+                z: 0.0,
+                obstructed: false,
+            },
+            ResourceNode {
+                resource_type: "copper".to_string(),
+                purity: Purity::Pure,
+                x: 300000.0,
+                y: 300000.0,
+                z: 0.0,
+                obstructed: false,
+            },
+        ];
+
+        // 1. With ignore_spawns = false (default), the proximity penalty should favor the Grass Fields node
+        // because the rich nodes at (300000, 300000) are too far from any spawn (>5km).
+        let mut config_constrained = OptimizerConfig::default();
+        config_constrained.game_phase = GamePhase::Phase1;
+        config_constrained.ignore_spawns = false;
+        
+        let results_constrained = optimize(&nodes, &config_constrained);
+        assert!(!results_constrained.is_empty());
+        let best_constrained = &results_constrained[0];
+        
+        // 2. With ignore_spawns = true, it should pick the rich cluster at (300000, 300000)
+        let mut config_ignored = OptimizerConfig::default();
+        config_ignored.game_phase = GamePhase::Phase1;
+        config_ignored.ignore_spawns = true;
+        
+        let results_ignored = optimize(&nodes, &config_ignored);
+        assert!(!results_ignored.is_empty());
+        let best_ignored = &results_ignored[0];
+
+        // The ignored version should find a position near the rich cluster (300000, 300000)
+        // and its score should be much higher than the constrained version.
+        assert!(best_ignored.score > best_constrained.score);
+        assert!((best_ignored.x - 300000.0).abs() < 50000.0);
+        assert!((best_ignored.y - 300000.0).abs() < 50000.0);
+    }
+}
+

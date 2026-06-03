@@ -62,7 +62,8 @@ struct TuiState {
     search_strategy: models::SearchStrategy,
     utility_func: models::UtilityFunction,
     decay_func: models::DistanceDecay,
-    selected_option: usize, // 0 = Preset, 1 = Purity, 2 = Strategy, 3 = Utility, 4 = Decay, 5 = Sigma, 6..26 = weights, 27 = Run button
+    ignore_spawns: bool,
+    selected_option: usize, // 0 = Preset, 1 = Purity, 2 = Strategy, 3 = Utility, 4 = Decay, 5 = Sigma, 6 = Ignore Spawns, 7..27 = weights, 28 = Run button
     checklist_scroll_top: usize,
     /// Top-N optimization candidates, sorted best-first
     opt_results: Vec<optimizer::OptimizationResult>,
@@ -360,8 +361,8 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
     initial_config: OptimizerConfig,
     initial_preset_idx: usize,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let run_button_index = 6 + CONFIGURABLE_RESOURCES.len();
-    let max_weight_option_index = 6 + CONFIGURABLE_RESOURCES.len() - 1;
+    let run_button_index = 7 + CONFIGURABLE_RESOURCES.len();
+    let max_weight_option_index = 7 + CONFIGURABLE_RESOURCES.len() - 1;
 
     let mut state = TuiState {
         sigma: initial_config.sigma,
@@ -370,6 +371,7 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
         search_strategy: initial_config.strategy,
         utility_func: initial_config.utility_func,
         decay_func: initial_config.decay_func,
+        ignore_spawns: initial_config.ignore_spawns,
         selected_option: 0,
         checklist_scroll_top: 0,
         opt_results: Vec::new(),
@@ -404,6 +406,7 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
         config.strategy = state.search_strategy;
         config.utility_func = state.utility_func;
         config.decay_func = state.decay_func;
+        config.ignore_spawns = state.ignore_spawns;
         config.game_phase = match state.preset_idx {
             0 => GamePhase::Phase1,
             1 => GamePhase::Phase2,
@@ -530,20 +533,35 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                 Span::styled(format!("Radius: < {} meters >", state.sigma), sigma_style),
             ]));
             left_lines.push(Line::from(""));
+
+            let ignore_spawns_style = if state.selected_option == 6 {
+                Style::default().fg(Color::Rgb(255, 152, 0)).add_modifier(Modifier::BOLD)
+            } else {
+                Style::default()
+            };
+            left_lines.push(Line::from(vec![
+                Span::raw(if state.selected_option == 6 { "> " } else { "  " }),
+                Span::styled(
+                    format!("Ignore Spawns: < {} >", if state.ignore_spawns { "Yes" } else { "No" }),
+                    ignore_spawns_style,
+                ),
+            ]));
+            left_lines.push(Line::from(""));
+
             left_lines.push(Line::from("─".repeat(46)));
             left_lines.push(Line::from(" PARAMETER CHECKLIST (Space to Toggle):"));
             left_lines.push(Line::from(""));
 
             // 2. Checklist Section (Scrollable viewport inside Left Column)
             let height = chunks[0].height as usize;
-            let max_visible = (height.saturating_sub(24)).max(1);
+            let max_visible = (height.saturating_sub(26)).max(1);
 
             let end_idx = (state.checklist_scroll_top + max_visible).min(CONFIGURABLE_RESOURCES.len());
             for idx in state.checklist_scroll_top..end_idx {
                 let res = CONFIGURABLE_RESOURCES[idx];
                 let val = *weights.get(res).unwrap_or(&0.0);
 
-                let is_focused = state.selected_option == 6 + idx;
+                let is_focused = state.selected_option == 7 + idx;
                 let is_enabled = val != 0.0;
 
                 let checkbox = if is_enabled {
@@ -898,10 +916,10 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                             state.selected_option -= 1;
 
                             // Adjust scroll top if focused on checklist
-                            if state.selected_option >= 6
+                            if state.selected_option >= 7
                                 && state.selected_option <= max_weight_option_index
                             {
-                                let item_idx = state.selected_option - 6;
+                                let item_idx = state.selected_option - 7;
                                 if item_idx < state.checklist_scroll_top {
                                     state.checklist_scroll_top = item_idx;
                                 }
@@ -913,12 +931,12 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                             state.selected_option += 1;
 
                             // Adjust scroll top if focused on checklist
-                            if state.selected_option >= 6
+                            if state.selected_option >= 7
                                 && state.selected_option <= max_weight_option_index
                             {
-                                let item_idx = state.selected_option - 6;
+                                let item_idx = state.selected_option - 7;
                                 let max_visible =
-                                    (layout_chunks[0].height as usize).saturating_sub(24).max(1);
+                                    (layout_chunks[0].height as usize).saturating_sub(26).max(1);
                                 if max_visible > 0
                                     && item_idx >= state.checklist_scroll_top + max_visible
                                 {
@@ -932,14 +950,14 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                             state.selected_option = state.selected_option.saturating_sub(5);
 
                             // Adjust scroll top if focused on checklist
-                            if state.selected_option >= 6
+                            if state.selected_option >= 7
                                 && state.selected_option <= max_weight_option_index
                             {
-                                let item_idx = state.selected_option - 6;
+                                let item_idx = state.selected_option - 7;
                                 if item_idx < state.checklist_scroll_top {
                                     state.checklist_scroll_top = item_idx;
                                 }
-                            } else if state.selected_option < 6 {
+                            } else if state.selected_option < 7 {
                                 state.checklist_scroll_top = 0;
                             }
                         }
@@ -950,12 +968,12 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                                 (state.selected_option + 5).min(run_button_index);
 
                             // Adjust scroll top if focused on checklist
-                            if state.selected_option >= 6
+                            if state.selected_option >= 7
                                 && state.selected_option <= max_weight_option_index
                             {
-                                let item_idx = state.selected_option - 6;
+                                let item_idx = state.selected_option - 7;
                                 let max_visible =
-                                    (layout_chunks[0].height as usize).saturating_sub(24).max(1);
+                                    (layout_chunks[0].height as usize).saturating_sub(26).max(1);
                                 if max_visible > 0
                                     && item_idx >= state.checklist_scroll_top + max_visible
                                 {
@@ -971,7 +989,7 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                     KeyCode::End => {
                         state.selected_option = run_button_index;
                         let max_visible =
-                            (layout_chunks[0].height as usize).saturating_sub(24).max(1);
+                            (layout_chunks[0].height as usize).saturating_sub(26).max(1);
                         if CONFIGURABLE_RESOURCES.len() > max_visible {
                             state.checklist_scroll_top = CONFIGURABLE_RESOURCES.len() - max_visible;
                         }
@@ -1053,10 +1071,12 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                             if state.sigma > 150.0 {
                                 state.sigma -= 50.0;
                             }
-                        } else if state.selected_option >= 6
+                        } else if state.selected_option == 6 {
+                            state.ignore_spawns = false;
+                        } else if state.selected_option >= 7
                             && state.selected_option <= max_weight_option_index
                         {
-                            let res_name = CONFIGURABLE_RESOURCES[state.selected_option - 6];
+                            let res_name = CONFIGURABLE_RESOURCES[state.selected_option - 7];
                             let val = weights.entry(res_name.to_string()).or_insert(0.0);
                             *val = (*val - 0.1).clamp(-10.0, 10.0);
                             *val = (*val * 10.0).round() / 10.0;
@@ -1142,10 +1162,12 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                             if state.sigma < 1500.0 {
                                 state.sigma += 50.0;
                             }
-                        } else if state.selected_option >= 6
+                        } else if state.selected_option == 6 {
+                            state.ignore_spawns = true;
+                        } else if state.selected_option >= 7
                             && state.selected_option <= max_weight_option_index
                         {
-                            let res_name = CONFIGURABLE_RESOURCES[state.selected_option - 6];
+                            let res_name = CONFIGURABLE_RESOURCES[state.selected_option - 7];
                             let val = weights.entry(res_name.to_string()).or_insert(0.0);
                             *val = (*val + 0.1).clamp(-10.0, 10.0);
                             *val = (*val * 10.0).round() / 10.0;
@@ -1155,10 +1177,12 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                         }
                     }
                     KeyCode::Char(' ') => {
-                        if state.selected_option >= 6
+                        if state.selected_option == 6 {
+                            state.ignore_spawns = !state.ignore_spawns;
+                        } else if state.selected_option >= 7
                             && state.selected_option <= max_weight_option_index
                         {
-                            let res_name = CONFIGURABLE_RESOURCES[state.selected_option - 6];
+                            let res_name = CONFIGURABLE_RESOURCES[state.selected_option - 7];
                             let val = weights.entry(res_name.to_string()).or_insert(0.0);
                             if *val == 0.0 {
                                 let restored = last_nonzero_weights
@@ -1173,7 +1197,9 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                         }
                     }
                     KeyCode::Enter => {
-                        if state.selected_option == run_button_index {
+                        if state.selected_option == 6 {
+                            state.ignore_spawns = !state.ignore_spawns;
+                        } else if state.selected_option == run_button_index {
                             if solving_rx.is_some() {
                                 continue;
                             }
@@ -1187,6 +1213,7 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                             config.strategy = state.search_strategy;
                             config.utility_func = state.utility_func;
                             config.decay_func = state.decay_func;
+                            config.ignore_spawns = state.ignore_spawns;
                             config.game_phase = match state.preset_idx {
                                 0 => GamePhase::Phase1,
                                 1 => GamePhase::Phase2,
@@ -1262,6 +1289,7 @@ Options:
   --decay <gaussian|exponential|powerlaw|linear>
                        Select distance decay function (default: gaussian)
   --collectibles       Focus search purely on slugs, drop pods, and alien artifacts
+  --ignore-spawns      Ignore distance to starting areas when optimizing
   --json               Output only raw JSON configuration and results
   --<resource> <w>     Dynamic weight of any resource type (e.g. --iron 1.5, --uranium -2.0)
   --help               Show this help menu
@@ -1418,6 +1446,10 @@ fn main() {
                 config.weights.insert("somersloop".to_string(), 1.0);
                 config.weights.insert("harddrive".to_string(), 1.5);
                 is_collectibles_mode = true;
+                i += 1;
+            }
+            "--ignore-spawns" | "--ignore-starting-areas" => {
+                config.ignore_spawns = true;
                 i += 1;
             }
             "--json" => {
@@ -1592,6 +1624,7 @@ fn run_full_simulation_matrix(nodes: &[models::ResourceNode]) {
                     4 => models::GamePhase::Phase5,
                     _ => models::GamePhase::Phase1,
                 },
+                ignore_spawns: false,
             };
             apply_preset_weights(config.preset_idx, &mut opt_config.weights);
             // Simulation mode: take the single best result (#1 candidate) from the Vec
