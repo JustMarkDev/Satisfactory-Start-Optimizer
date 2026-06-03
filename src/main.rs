@@ -53,6 +53,11 @@ const CONFIGURABLE_RESOURCES: &[&str] = &[
     "mercer",
     "somersloop",
     "harddrive",
+    "paleberry",
+    "berylnut",
+    "baconagaric",
+    "sporeflower",
+    "gaspillar",
 ];
 
 struct TuiState {
@@ -88,6 +93,11 @@ fn apply_preset_weights(preset_idx: usize, weights: &mut HashMap<String, f64>) {
             weights.insert("mercer".to_string(), 0.15);
             weights.insert("somersloop".to_string(), 0.15);
             weights.insert("harddrive".to_string(), 0.25);
+            weights.insert("paleberry".to_string(), 0.10);
+            weights.insert("berylnut".to_string(), 0.08);
+            weights.insert("baconagaric".to_string(), 0.12);
+            weights.insert("sporeflower".to_string(), -0.01);
+            weights.insert("gaspillar".to_string(), -0.02);
         }
         1 => {
             weights.insert("iron".to_string(), 1.0);
@@ -105,6 +115,11 @@ fn apply_preset_weights(preset_idx: usize, weights: &mut HashMap<String, f64>) {
             weights.insert("mercer".to_string(), 0.12);
             weights.insert("somersloop".to_string(), 0.12);
             weights.insert("harddrive".to_string(), 0.20);
+            weights.insert("paleberry".to_string(), 0.08);
+            weights.insert("berylnut".to_string(), 0.06);
+            weights.insert("baconagaric".to_string(), 0.10);
+            weights.insert("sporeflower".to_string(), -0.008);
+            weights.insert("gaspillar".to_string(), -0.015);
         }
         2 => {
             weights.insert("iron".to_string(), 0.8);
@@ -124,6 +139,11 @@ fn apply_preset_weights(preset_idx: usize, weights: &mut HashMap<String, f64>) {
             weights.insert("mercer".to_string(), 0.10);
             weights.insert("somersloop".to_string(), 0.10);
             weights.insert("harddrive".to_string(), 0.15);
+            weights.insert("paleberry".to_string(), 0.05);
+            weights.insert("berylnut".to_string(), 0.04);
+            weights.insert("baconagaric".to_string(), 0.06);
+            weights.insert("sporeflower".to_string(), -0.004);
+            weights.insert("gaspillar".to_string(), -0.008);
         }
         3 => {
             weights.insert("iron".to_string(), 0.6);
@@ -147,6 +167,11 @@ fn apply_preset_weights(preset_idx: usize, weights: &mut HashMap<String, f64>) {
             weights.insert("mercer".to_string(), 0.10);
             weights.insert("somersloop".to_string(), 0.10);
             weights.insert("harddrive".to_string(), 0.15);
+            weights.insert("paleberry".to_string(), 0.02);
+            weights.insert("berylnut".to_string(), 0.02);
+            weights.insert("baconagaric".to_string(), 0.02);
+            weights.insert("sporeflower".to_string(), -0.001);
+            weights.insert("gaspillar".to_string(), -0.002);
         }
         4 => {
             weights.insert("iron".to_string(), 0.5);
@@ -170,6 +195,11 @@ fn apply_preset_weights(preset_idx: usize, weights: &mut HashMap<String, f64>) {
             weights.insert("mercer".to_string(), 0.05);
             weights.insert("somersloop".to_string(), 0.05);
             weights.insert("harddrive".to_string(), 0.10);
+            weights.insert("paleberry".to_string(), 0.01);
+            weights.insert("berylnut".to_string(), 0.01);
+            weights.insert("baconagaric".to_string(), 0.01);
+            weights.insert("sporeflower".to_string(), -0.0005);
+            weights.insert("gaspillar".to_string(), -0.001);
         }
         5 => {
             weights.insert("blueslug".to_string(), 0.3);
@@ -178,6 +208,9 @@ fn apply_preset_weights(preset_idx: usize, weights: &mut HashMap<String, f64>) {
             weights.insert("mercer".to_string(), 1.0);
             weights.insert("somersloop".to_string(), 1.0);
             weights.insert("harddrive".to_string(), 1.5);
+            weights.insert("paleberry".to_string(), 0.1);
+            weights.insert("berylnut".to_string(), 0.1);
+            weights.insert("baconagaric".to_string(), 0.1);
         }
         _ => {}
     }
@@ -206,6 +239,11 @@ fn default_nonzero_weight(res: &str) -> f64 {
         "mercer" => 0.15,
         "somersloop" => 0.15,
         "harddrive" => 0.25,
+        "paleberry" => 0.05,
+        "berylnut" => 0.05,
+        "baconagaric" => 0.05,
+        "sporeflower" => -0.008,
+        "gaspillar" => -0.015,
         _ => 1.0,
     }
 }
@@ -592,6 +630,11 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                     "mercer" => Color::Rgb(255, 127, 80),
                     "somersloop" => Color::Rgb(230, 230, 250),
                     "harddrive" => Color::Rgb(205, 127, 50),
+                    "paleberry" => Color::Rgb(219, 112, 147),
+                    "berylnut" => Color::Rgb(205, 133, 63),
+                    "baconagaric" => Color::Rgb(188, 143, 143),
+                    "sporeflower" => Color::Rgb(139, 0, 139),
+                    "gaspillar" => Color::Rgb(46, 139, 87),
                     _ => Color::Gray,
                 };
 

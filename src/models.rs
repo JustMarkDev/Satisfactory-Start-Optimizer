@@ -95,6 +95,11 @@ impl GamePhase {
                 weights.insert("mercer".to_string(), 0.15);
                 weights.insert("somersloop".to_string(), 0.15);
                 weights.insert("harddrive".to_string(), 0.25);
+                weights.insert("paleberry".to_string(), 0.10);
+                weights.insert("berylnut".to_string(), 0.08);
+                weights.insert("baconagaric".to_string(), 0.12);
+                weights.insert("sporeflower".to_string(), -0.01);
+                weights.insert("gaspillar".to_string(), -0.02);
             }
             GamePhase::Phase2 => {
                 weights.insert("iron".to_string(), 1.0);
@@ -114,6 +119,11 @@ impl GamePhase {
                 weights.insert("mercer".to_string(), 0.12);
                 weights.insert("somersloop".to_string(), 0.12);
                 weights.insert("harddrive".to_string(), 0.20);
+                weights.insert("paleberry".to_string(), 0.08);
+                weights.insert("berylnut".to_string(), 0.06);
+                weights.insert("baconagaric".to_string(), 0.10);
+                weights.insert("sporeflower".to_string(), -0.008);
+                weights.insert("gaspillar".to_string(), -0.015);
             }
             GamePhase::Phase3 => {
                 weights.insert("iron".to_string(), 0.8);
@@ -135,6 +145,11 @@ impl GamePhase {
                 weights.insert("mercer".to_string(), 0.10);
                 weights.insert("somersloop".to_string(), 0.10);
                 weights.insert("harddrive".to_string(), 0.15);
+                weights.insert("paleberry".to_string(), 0.05);
+                weights.insert("berylnut".to_string(), 0.04);
+                weights.insert("baconagaric".to_string(), 0.06);
+                weights.insert("sporeflower".to_string(), -0.004);
+                weights.insert("gaspillar".to_string(), -0.008);
             }
             GamePhase::Phase4 => {
                 weights.insert("iron".to_string(), 0.6);
@@ -158,6 +173,11 @@ impl GamePhase {
                 weights.insert("mercer".to_string(), 0.10);
                 weights.insert("somersloop".to_string(), 0.10);
                 weights.insert("harddrive".to_string(), 0.15);
+                weights.insert("paleberry".to_string(), 0.02);
+                weights.insert("berylnut".to_string(), 0.02);
+                weights.insert("baconagaric".to_string(), 0.02);
+                weights.insert("sporeflower".to_string(), -0.001);
+                weights.insert("gaspillar".to_string(), -0.002);
             }
             GamePhase::Phase5 => {
                 weights.insert("iron".to_string(), 0.5);
@@ -181,6 +201,11 @@ impl GamePhase {
                 weights.insert("mercer".to_string(), 0.05);
                 weights.insert("somersloop".to_string(), 0.05);
                 weights.insert("harddrive".to_string(), 0.10);
+                weights.insert("paleberry".to_string(), 0.01);
+                weights.insert("berylnut".to_string(), 0.01);
+                weights.insert("baconagaric".to_string(), 0.01);
+                weights.insert("sporeflower".to_string(), -0.0005);
+                weights.insert("gaspillar".to_string(), -0.001);
             }
         }
     }
@@ -325,6 +350,11 @@ impl Default for OptimizerConfig {
         weights.insert("mercer".to_string(), 0.10);
         weights.insert("somersloop".to_string(), 0.10);
         weights.insert("harddrive".to_string(), 0.15);
+        weights.insert("paleberry".to_string(), 0.05);
+        weights.insert("berylnut".to_string(), 0.05);
+        weights.insert("baconagaric".to_string(), 0.05);
+        weights.insert("sporeflower".to_string(), -0.008);
+        weights.insert("gaspillar".to_string(), -0.015);
 
         Self {
             sigma: 700.0,

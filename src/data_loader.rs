@@ -4,7 +4,7 @@ use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
-const EMBEDDED_NODES: &str = include_str!("../data/interactive_map_data.json");
+const EMBEDDED_NODES: &str = include_str!("../data/complete-map-data.json");
 
 #[derive(Debug, Deserialize)]
 #[allow(dead_code)]
@@ -81,6 +81,11 @@ pub fn load_nodes_from_str(s: &str) -> Result<Vec<ResourceNode>, Box<dyn std::er
                             "mercerSpheres" => "mercer",
                             "somersloops" => "somersloop",
                             "hardDrives" => "harddrive",
+                            "paleBerry" => "paleberry",
+                            "berylNut" => "berylnut",
+                            "baconAgaric" => "baconagaric",
+                            "sporeFlowers" => "sporeflower",
+                            "pillars" => "gaspillar",
                             _ => "",
                         };
 
@@ -89,46 +94,51 @@ pub fn load_nodes_from_str(s: &str) -> Result<Vec<ResourceNode>, Box<dyn std::er
                         }
 
                         if let Some(markers_val) = item.markers {
-                            if let Ok(markers_list) = serde_json::from_value::<Vec<Marker>>(markers_val) {
-                                for marker in markers_list {
-                                    let res_type = match marker.marker_type.as_deref() {
-                                        Some("Desc_Stone_C") => "limestone",
-                                        Some("Desc_OreIron_C") => "iron",
-                                        Some("Desc_OreCopper_C") => "copper",
-                                        Some("Desc_OreGold_C") => "caterium",
-                                        Some("Desc_Coal_C") => "coal",
-                                        Some("Desc_LiquidOil_C") => "oil",
-                                        Some("Desc_Sulfur_C") => "sulfur",
-                                        Some("Desc_OreBauxite_C") => "bauxite",
-                                        Some("Desc_RawQuartz_C") => "quartz",
-                                        Some("Desc_OreUranium_C") => "uranium",
-                                        Some("Desc_SAM_C") => "sam",
-                                        Some("Desc_NitrogenGas_C") => "nitrogenwell",
-                                        Some("Desc_Water_C") => "waterwell",
-                                        _ => {
-                                            if let Some(ref path) = marker.path_name {
-                                                if path.contains("BP_ResourceNodeGeyser") {
-                                                    "geyser"
+                            match serde_json::from_value::<Vec<Marker>>(markers_val) {
+                                Ok(markers_list) => {
+                                    for marker in markers_list {
+                                        let res_type = match marker.marker_type.as_deref() {
+                                            Some("Desc_Stone_C") => "limestone",
+                                            Some("Desc_OreIron_C") => "iron",
+                                            Some("Desc_OreCopper_C") => "copper",
+                                            Some("Desc_OreGold_C") => "caterium",
+                                            Some("Desc_Coal_C") => "coal",
+                                            Some("Desc_LiquidOil_C") => "oil",
+                                            Some("Desc_Sulfur_C") => "sulfur",
+                                            Some("Desc_OreBauxite_C") => "bauxite",
+                                            Some("Desc_RawQuartz_C") => "quartz",
+                                            Some("Desc_OreUranium_C") => "uranium",
+                                            Some("Desc_SAM_C") => "sam",
+                                            Some("Desc_NitrogenGas_C") => "nitrogenwell",
+                                            Some("Desc_Water_C") => "waterwell",
+                                            _ => {
+                                                if let Some(ref path) = marker.path_name {
+                                                    if path.contains("BP_ResourceNodeGeyser") {
+                                                        "geyser"
+                                                    } else {
+                                                        default_res_type
+                                                    }
                                                 } else {
                                                     default_res_type
                                                 }
-                                            } else {
-                                                default_res_type
                                             }
-                                        }
-                                    };
+                                        };
 
-                                    let purity_str = marker.purity.as_deref().unwrap_or("RP_Normal");
-                                    let purity = Purity::from_str(purity_str);
+                                        let purity_str = marker.purity.as_deref().unwrap_or("RP_Normal");
+                                        let purity = Purity::from_str(purity_str);
 
-                                    nodes.push(ResourceNode {
-                                        resource_type: res_type.to_string(),
-                                        purity,
-                                        x: marker.x,
-                                        y: marker.y,
-                                        z: marker.z.unwrap_or(0.0),
-                                        obstructed: marker.obstructed.unwrap_or(false),
-                                    });
+                                        nodes.push(ResourceNode {
+                                            resource_type: res_type.to_string(),
+                                            purity,
+                                            x: marker.x,
+                                            y: marker.y,
+                                            z: marker.z.unwrap_or(0.0),
+                                            obstructed: marker.obstructed.unwrap_or(false),
+                                        });
+                                    }
+                                }
+                                Err(e) => {
+                                    eprintln!("Error parsing markers for item {}: {:?}", item.layer_id, e);
                                 }
                             }
                         }

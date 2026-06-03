@@ -432,7 +432,7 @@ fn calculate_utility(
         let weight = weights_arr[i];
         if weight < 0.0 {
             let res_yield = yields[i];
-            let penalty_factor = (res_yield * weight.abs()).exp();
+            let penalty_factor = 1.0 + res_yield * weight.abs();
             score /= penalty_factor;
         }
     }
@@ -1117,6 +1117,16 @@ mod tests {
         assert!(best_ignored.score > best_constrained.score);
         assert!((best_ignored.x - 300000.0).abs() < 50000.0);
         assert!((best_ignored.y - 300000.0).abs() < 50000.0);
+    }
+
+    #[test]
+    fn test_default_nodes_optimize() {
+        let nodes = crate::data_loader::load_default_nodes();
+        let config = OptimizerConfig::default();
+        let results = optimize(&nodes, &config);
+        assert!(!results.is_empty());
+        assert!(results[0].score > 0.0);
+        assert!(!results[0].local_nodes.is_empty());
     }
 }
 
