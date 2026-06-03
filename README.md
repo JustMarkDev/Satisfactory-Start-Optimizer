@@ -103,9 +103,33 @@ The decay function models the penalty associated with the distance ($d$) from th
 
 ### Requirements
 - [Rust toolchain (Cargo/rustc)](https://www.rust-lang.org/tools/install)
+- [Node.js & npm](https://nodejs.org/en/download/) (for the Web Dashboard)
 
-### Launching the Interactive TUI Dashboard
-Running the application without the `--json` flag (with or without other parameters) enters a full-screen interactive terminal dashboard:
+### 1. Launching the Web Dashboard
+The web dashboard provides an interactive satellite/in-game map overlay with real-time UI controls to adjust your priorities, Sigma radius, utility models, and visualize optimal starting coordinates instantly.
+
+1. **Install Node.js dependencies**:
+   ```bash
+   npm install
+   ```
+
+2. **Start the Rust API Server**:
+   ```bash
+   npm run server
+   ```
+   This spins up the compiled Rust backend server listening on `http://127.0.0.1:8080`.
+
+3. **Start the Vite Frontend Dev Server**:
+   In another terminal, run:
+   ```bash
+   npm run dev
+   ```
+   This starts Vite on `http://127.0.0.1:3000` (and automatically opens your browser). It proxies all API calls (`/api/*`) to the Rust backend.
+
+---
+
+### 2. Launching the Interactive TUI Dashboard
+If you prefer a retro terminal interface, you can run the application directly in your terminal without starting the web servers:
 ```bash
 cargo run --release
 ```
@@ -117,7 +141,9 @@ cargo run --release
 *   **Enter**: Execute the optimization solver when focused on `[ RUN OPTIMIZATION ENGINE ]`.
 *   **Q or Esc**: Exit the alternate screen cleanly and restore the terminal configuration.
 
-### Running in Scriptable JSON Mode (`--json`)
+---
+
+### 3. Running in Scriptable JSON Mode (`--json`)
 If you want to integrate the optimizer with automated scripting pipelines or print raw serialized outputs, use the `--json` flag:
 
 *   Quietly solve using specific utility and distance decay strategies:
@@ -144,3 +170,5 @@ If you want to integrate the optimizer with automated scripting pipelines or pri
     ```bash
     cargo run --release -- --help
     ```
+
+
