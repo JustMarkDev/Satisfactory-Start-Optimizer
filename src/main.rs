@@ -64,7 +64,10 @@ struct TuiState {
     decay_func: models::DistanceDecay,
     selected_option: usize, // 0 = Preset, 1 = Purity, 2 = Strategy, 3 = Utility, 4 = Decay, 5 = Sigma, 6..26 = weights, 27 = Run button
     checklist_scroll_top: usize,
-    opt_result: Option<optimizer::OptimizationResult>,
+    /// Top-N optimization candidates, sorted best-first
+    opt_results: Vec<optimizer::OptimizationResult>,
+    /// Which candidate is currently displayed (0 = best)
+    selected_candidate: usize,
     status_msg: String,
 }
 
@@ -75,8 +78,9 @@ fn apply_preset_weights(preset_idx: usize, weights: &mut HashMap<String, f64>) {
             weights.insert("iron".to_string(), 1.0);
             weights.insert("copper".to_string(), 0.8);
             weights.insert("limestone".to_string(), 0.7);
-            weights.insert("caterium".to_string(), 0.1);
-            weights.insert("uranium".to_string(), -2.0); // Severe penalty
+            weights.insert("coal".to_string(), 0.2); // forward-looking; unlocked at Tier 3
+            weights.insert("caterium".to_string(), 0.2); // M.A.M. research value
+            weights.insert("uranium".to_string(), -2.0); // severe penalty (no hazmat suit)
             weights.insert("blueslug".to_string(), 0.10);
             weights.insert("yellowslug".to_string(), 0.15);
             weights.insert("purpleslug".to_string(), 0.20);
@@ -89,9 +93,11 @@ fn apply_preset_weights(preset_idx: usize, weights: &mut HashMap<String, f64>) {
             weights.insert("copper".to_string(), 0.8);
             weights.insert("limestone".to_string(), 0.7);
             weights.insert("coal".to_string(), 1.0);
-            weights.insert("water".to_string(), 0.8);
+            weights.insert("water".to_string(), 1.2);
             weights.insert("caterium".to_string(), 0.4);
-            weights.insert("uranium".to_string(), -2.0);
+            weights.insert("sulfur".to_string(), 0.3); // Black Powder (Nobelisk/ammo)
+            weights.insert("quartz".to_string(), 0.2); // Crystal Oscillators (Tier 4)
+            weights.insert("uranium".to_string(), -2.0); // radiation penalty (no hazmat suit)
             weights.insert("blueslug".to_string(), 0.08);
             weights.insert("yellowslug".to_string(), 0.12);
             weights.insert("purpleslug".to_string(), 0.18);
@@ -104,12 +110,13 @@ fn apply_preset_weights(preset_idx: usize, weights: &mut HashMap<String, f64>) {
             weights.insert("copper".to_string(), 0.8);
             weights.insert("limestone".to_string(), 0.6);
             weights.insert("coal".to_string(), 0.8);
-            weights.insert("water".to_string(), 0.6);
+            weights.insert("water".to_string(), 0.9); // oil refinery chains are water-hungry
             weights.insert("oil".to_string(), 1.0);
             weights.insert("sulfur".to_string(), 0.6);
             weights.insert("quartz".to_string(), 0.6);
             weights.insert("caterium".to_string(), 0.6);
-            weights.insert("uranium".to_string(), -2.0);
+            weights.insert("bauxite".to_string(), 0.3); // forward-looking aluminium R&D
+            weights.insert("uranium".to_string(), -2.0); // radiation penalty (no hazmat suit yet)
             weights.insert("blueslug".to_string(), 0.05);
             weights.insert("yellowslug".to_string(), 0.08);
             weights.insert("purpleslug".to_string(), 0.12);
@@ -122,7 +129,7 @@ fn apply_preset_weights(preset_idx: usize, weights: &mut HashMap<String, f64>) {
             weights.insert("copper".to_string(), 0.6);
             weights.insert("limestone".to_string(), 0.5);
             weights.insert("coal".to_string(), 0.6);
-            weights.insert("water".to_string(), 0.6);
+            weights.insert("water".to_string(), 1.2);
             weights.insert("oil".to_string(), 0.8);
             weights.insert("sulfur".to_string(), 0.8);
             weights.insert("quartz".to_string(), 0.8);
@@ -130,7 +137,8 @@ fn apply_preset_weights(preset_idx: usize, weights: &mut HashMap<String, f64>) {
             weights.insert("bauxite".to_string(), 1.0);
             weights.insert("nitrogenwell".to_string(), 0.8);
             weights.insert("geyser".to_string(), 0.8);
-            weights.insert("uranium".to_string(), 0.5);
+            // Nuclear power is primary at Tier 7-8; player has hazmat suit
+            weights.insert("uranium".to_string(), 0.6);
             weights.insert("sam".to_string(), 0.6);
             weights.insert("blueslug".to_string(), 0.05);
             weights.insert("yellowslug".to_string(), 0.08);
@@ -152,7 +160,8 @@ fn apply_preset_weights(preset_idx: usize, weights: &mut HashMap<String, f64>) {
             weights.insert("bauxite".to_string(), 0.8);
             weights.insert("nitrogenwell".to_string(), 0.8);
             weights.insert("geyser".to_string(), 0.8);
-            weights.insert("uranium".to_string(), 0.8);
+            // Ficsonium requires uranium; player has hazmat suit
+            weights.insert("uranium".to_string(), 0.5);
             weights.insert("sam".to_string(), 1.0);
             weights.insert("blueslug".to_string(), 0.03);
             weights.insert("yellowslug".to_string(), 0.05);
@@ -162,7 +171,7 @@ fn apply_preset_weights(preset_idx: usize, weights: &mut HashMap<String, f64>) {
             weights.insert("harddrive".to_string(), 0.10);
         }
         5 => {
-            weights.insert("blueslug".to_string(), 0.5);
+            weights.insert("blueslug".to_string(), 0.3);
             weights.insert("yellowslug".to_string(), 0.8);
             weights.insert("purpleslug".to_string(), 1.2);
             weights.insert("mercer".to_string(), 1.0);
@@ -201,7 +210,7 @@ fn default_nonzero_weight(res: &str) -> f64 {
 }
 
 fn draw_ascii_map(
-    result: &Option<optimizer::OptimizationResult>,
+    result: Option<&optimizer::OptimizationResult>,
     width: usize,
     height: usize,
 ) -> Vec<Line<'static>> {
@@ -331,7 +340,7 @@ fn run_tui(
     let mut stdout = std::io::stdout();
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
     let _guard = RawModeGuard;
-    
+
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
@@ -363,7 +372,8 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
         decay_func: initial_config.decay_func,
         selected_option: 0,
         checklist_scroll_top: 0,
-        opt_result: None,
+        opt_results: Vec::new(),
+        selected_candidate: 0,
         status_msg: "Use Arrow keys to navigate, Space to toggle, Enter to optimize.".to_string(),
     };
 
@@ -380,7 +390,7 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
         }
     }
 
-    let mut solving_rx: Option<mpsc::Receiver<optimizer::OptimizationResult>> = None;
+    let mut solving_rx: Option<mpsc::Receiver<Vec<optimizer::OptimizationResult>>> = None;
     let mut solve_start_time: Option<std::time::Instant> = None;
     let mut spinner_frame = 0;
     const SPINNER_CHARS: &[char] = &['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
@@ -403,9 +413,10 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
             _ => GamePhase::Phase1,
         };
         let start_time = std::time::Instant::now();
-        let result = optimizer::optimize(nodes, &config);
+        let results = optimizer::optimize(nodes, &config);
         let duration = start_time.elapsed();
-        state.opt_result = Some(result);
+        state.opt_results = results;
+        state.selected_candidate = 0;
         state.status_msg = format!("Initial solve in {:?}", duration);
     }
 
@@ -427,9 +438,13 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                     }
                 }
             }
-            if let Some(result) = finished_result {
-                state.opt_result = Some(result);
-                let duration = solve_start_time.take().map(|t| t.elapsed()).unwrap_or_default();
+            if let Some(results) = finished_result {
+                state.opt_results = results;
+                state.selected_candidate = 0;
+                let duration = solve_start_time
+                    .take()
+                    .map(|t| t.elapsed())
+                    .unwrap_or_default();
                 state.status_msg = format!("Solved in {:?}", duration);
                 solving_rx = None;
             }
@@ -649,7 +664,7 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                 .split(map_inner);
 
             let map_lines = draw_ascii_map(
-                &state.opt_result,
+                state.opt_results.get(state.selected_candidate),
                 map_sub_chunks[0].width as usize,
                 map_sub_chunks[0].height as usize,
             );
@@ -688,20 +703,33 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                     ]));
                 }
                 results_lines.push(Line::from("  Please wait while rayon parallelizes search over your CPU cores."));
-            } else if let Some(res) = &state.opt_result {
+            } else if let Some(res) = state.opt_results.get(state.selected_candidate) {
+                let total_candidates = state.opt_results.len();
+                let candidate_num = state.selected_candidate + 1;
+
+                // --- Candidate header ---
                 results_lines.push(Line::from(vec![
-                    Span::styled("OPTIMAL STARTING ZONE FOUND:", Style::default().fg(Color::Rgb(50, 205, 50)).add_modifier(Modifier::BOLD)),
+                    Span::styled(
+                        format!("CANDIDATE #{}/{} — {}:", candidate_num, total_candidates, res.closest_spawn.name),
+                        Style::default().fg(Color::Rgb(50, 205, 50)).add_modifier(Modifier::BOLD),
+                    ),
+                    if total_candidates > 1 {
+                        Span::styled(
+                            format!(" (Use [ / ] or Left/Right to cycle candidates)"),
+                            Style::default().fg(Color::Rgb(180, 180, 180)),
+                        )
+                    } else {
+                        Span::raw("")
+                    },
                 ]));
                 results_lines.push(Line::from(vec![
-                    Span::raw(format!("  Coordinate: X: {:.2}m | Y: {:.2}m | Z: {:.2}m", res.x / 100.0, res.y / 100.0, res.z / 100.0)),
+                    Span::raw(format!("  Coordinate: X: {:.0}m | Y: {:.0}m | Z: {:.0}m", res.x / 100.0, res.y / 100.0, res.z / 100.0)),
                 ]));
                 results_lines.push(Line::from(vec![
-                    Span::raw(format!("  Utility Score: {:.6}", res.score)),
-                ]));
-                results_lines.push(Line::from(vec![
-                    Span::raw(format!("  Closest Spawn: {} Biome (Distance: {:.1}m)", res.closest_spawn.name, res.spawn_distance)),
+                    Span::raw(format!("  Utility Score: {:.6}  |  Spawn Distance: {:.0}m", res.score, res.spawn_distance)),
                 ]));
 
+                // --- Terrain quality block ---
                 let build_radius = 1.5 * state.sigma;
                 let mut local_heights = Vec::new();
                 for node in nodes {
@@ -723,11 +751,106 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                     }).sum();
                     let std_dev_cm = (variance_sum / local_heights.len() as f64).sqrt();
                     std_dev_m = std_dev_cm / 100.0;
-                    flatness_score = (-std_dev_m / 40.0).exp();
+                    flatness_score = (-std_dev_m / 30.0).exp();
                 }
+
+                let terrain_label = if flatness_score >= 0.80 {
+                    ("Excellent", Color::Rgb(50, 205, 50))
+                } else if flatness_score >= 0.60 {
+                    ("Moderate", Color::Rgb(255, 215, 0))
+                } else if flatness_score >= 0.40 {
+                    ("Difficult", Color::Rgb(255, 165, 0))
+                } else {
+                    ("Severe", Color::Rgb(255, 69, 0))
+                };
                 results_lines.push(Line::from(vec![
-                    Span::raw(format!("  Terrain Flatness: {:.1}% (Z std dev: {:.2}m)", flatness_score * 100.0, std_dev_m)),
+                    Span::raw(format!("  Flatness: {:.1}% (σ={:.1}m)  ", flatness_score * 100.0, std_dev_m)),
+                    Span::styled(format!("[{}]", terrain_label.0), Style::default().fg(terrain_label.1).add_modifier(Modifier::BOLD)),
+                    Span::raw(format!("  TRI: {:.1}m  Diversity: {:.2}",
+                        res.terrain_ruggedness, res.diversity_score)),
                 ]));
+
+                // Terrain difficulty warning for high-ruggedness areas
+                if flatness_score < 0.60 {
+                    results_lines.push(Line::from(vec![
+                        Span::styled(
+                            "  ⚠ High terrain complexity — expect significant foundation costs for large bases.",
+                            Style::default().fg(Color::Rgb(255, 165, 0)),
+                        ),
+                    ]));
+                }
+
+                // --- Resource yield breakdown ---
+                results_lines.push(Line::from(""));
+                results_lines.push(Line::from(vec![
+                    Span::styled("WEIGHTED YIELDS:", Style::default().fg(Color::Rgb(0, 191, 255)).add_modifier(Modifier::BOLD)),
+                ]));
+                let mut sorted_yields: Vec<(&String, &f64)> = res.resource_yields.iter().collect();
+                sorted_yields.sort_by(|a, b| b.1.partial_cmp(a.1).unwrap_or(std::cmp::Ordering::Equal));
+                let mut yield_line_items: Vec<String> = Vec::new();
+                for (name, yield_val) in sorted_yields.iter().take(9) {
+                    yield_line_items.push(format!("{}: {:.2}", name, yield_val));
+                }
+                // Print in rows of 3
+                for chunk in yield_line_items.chunks(3) {
+                    let mut spans = vec![Span::raw("  ")];
+                    for (i, item) in chunk.iter().enumerate() {
+                        spans.push(Span::raw(item.clone()));
+                        if i < chunk.len() - 1 {
+                            spans.push(Span::raw(" | "));
+                        }
+                    }
+                    results_lines.push(Line::from(spans));
+                }
+
+                // --- Local node inventory ---
+                results_lines.push(Line::from(""));
+                results_lines.push(Line::from(vec![
+                    Span::styled("LOCAL NODES (accessible):", Style::default().fg(Color::Rgb(255, 152, 0)).add_modifier(Modifier::BOLD)),
+                ]));
+                let mut sorted_nodes: Vec<_> = res.local_nodes.iter().collect();
+                sorted_nodes.sort_by(|a, b| b.1.cmp(a.1).then_with(|| a.0.cmp(b.0)));
+                let mut current_line: Vec<String> = Vec::new();
+                for (name, count) in &sorted_nodes {
+                    if current_line.len() >= 3 {
+                        let mut spans = vec![Span::raw("  ")];
+                        for (i, item) in current_line.iter().enumerate() {
+                            spans.push(Span::raw(item.to_string()));
+                            if i < current_line.len() - 1 {
+                                spans.push(Span::raw(" | "));
+                            }
+                        }
+                        results_lines.push(Line::from(spans));
+                        current_line.clear();
+                    }
+                    current_line.push(format!("{}x {}", count, name));
+                }
+                if !current_line.is_empty() {
+                    let mut spans = vec![Span::raw("  ")];
+                    for (i, item) in current_line.iter().enumerate() {
+                        spans.push(Span::raw(item.to_string()));
+                        if i < current_line.len() - 1 {
+                            spans.push(Span::raw(" | "));
+                        }
+                    }
+                    results_lines.push(Line::from(spans));
+                }
+
+                // Obstructed nodes (Phase 1/2 only) — shown as warning
+                if !res.obstructed_nodes.is_empty() {
+                    results_lines.push(Line::from(vec![
+                        Span::styled(
+                            "  [Nobelisk locked]: ",
+                            Style::default().fg(Color::Rgb(255, 69, 0)),
+                        ),
+                        Span::raw(
+                            res.obstructed_nodes.iter()
+                                .map(|(k, v)| format!("{}x {}", v, k))
+                                .collect::<Vec<_>>()
+                                .join(" | ")
+                        ),
+                    ]));
+                }
             } else {
                 results_lines.push(Line::from("No optimization solved yet. Press ENTER on [ RUN ] to execute."));
             }
@@ -735,7 +858,7 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
             results_lines.push(Line::from(""));
             results_lines.push(Line::from(vec![
                 Span::styled("Controls: ", Style::default().add_modifier(Modifier::BOLD)),
-                Span::raw("Up/Down to navigate | Left/Right to adjust values | Space to toggle weights | Enter to RUN | Q/Esc to quit"),
+                Span::raw("Up/Down: navigate | Left/Right: adjust | Space: toggle weight | Enter: RUN | [ ]: cycle candidates | Q: quit"),
             ]));
             results_lines.push(Line::from(""));
             results_lines.push(Line::from(vec![
@@ -775,7 +898,9 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                             state.selected_option -= 1;
 
                             // Adjust scroll top if focused on checklist
-                            if state.selected_option >= 6 && state.selected_option <= max_weight_option_index {
+                            if state.selected_option >= 6
+                                && state.selected_option <= max_weight_option_index
+                            {
                                 let item_idx = state.selected_option - 6;
                                 if item_idx < state.checklist_scroll_top {
                                     state.checklist_scroll_top = item_idx;
@@ -788,7 +913,9 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                             state.selected_option += 1;
 
                             // Adjust scroll top if focused on checklist
-                            if state.selected_option >= 6 && state.selected_option <= max_weight_option_index {
+                            if state.selected_option >= 6
+                                && state.selected_option <= max_weight_option_index
+                            {
                                 let item_idx = state.selected_option - 6;
                                 let max_visible =
                                     (layout_chunks[0].height as usize).saturating_sub(24).max(1);
@@ -803,9 +930,11 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                     KeyCode::PageUp => {
                         if state.selected_option > 0 {
                             state.selected_option = state.selected_option.saturating_sub(5);
-                            
+
                             // Adjust scroll top if focused on checklist
-                            if state.selected_option >= 6 && state.selected_option <= max_weight_option_index {
+                            if state.selected_option >= 6
+                                && state.selected_option <= max_weight_option_index
+                            {
                                 let item_idx = state.selected_option - 6;
                                 if item_idx < state.checklist_scroll_top {
                                     state.checklist_scroll_top = item_idx;
@@ -817,10 +946,13 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                     }
                     KeyCode::PageDown => {
                         if state.selected_option < run_button_index {
-                            state.selected_option = (state.selected_option + 5).min(run_button_index);
-                            
+                            state.selected_option =
+                                (state.selected_option + 5).min(run_button_index);
+
                             // Adjust scroll top if focused on checklist
-                            if state.selected_option >= 6 && state.selected_option <= max_weight_option_index {
+                            if state.selected_option >= 6
+                                && state.selected_option <= max_weight_option_index
+                            {
                                 let item_idx = state.selected_option - 6;
                                 let max_visible =
                                     (layout_chunks[0].height as usize).saturating_sub(24).max(1);
@@ -905,6 +1037,7 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                                 models::DistanceDecay::Exponential,
                                 models::DistanceDecay::PowerLaw,
                                 models::DistanceDecay::Linear,
+                                models::DistanceDecay::LogisticStep,
                             ];
                             let mut curr_idx = decays
                                 .iter()
@@ -913,14 +1046,16 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                             if curr_idx > 0 {
                                 curr_idx -= 1;
                             } else {
-                                curr_idx = 3;
+                                curr_idx = 4;
                             }
                             state.decay_func = decays[curr_idx];
                         } else if state.selected_option == 5 {
                             if state.sigma > 150.0 {
                                 state.sigma -= 50.0;
                             }
-                        } else if state.selected_option >= 6 && state.selected_option <= max_weight_option_index {
+                        } else if state.selected_option >= 6
+                            && state.selected_option <= max_weight_option_index
+                        {
                             let res_name = CONFIGURABLE_RESOURCES[state.selected_option - 6];
                             let val = weights.entry(res_name.to_string()).or_insert(0.0);
                             *val = (*val - 0.1).clamp(-10.0, 10.0);
@@ -991,12 +1126,13 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                                 models::DistanceDecay::Exponential,
                                 models::DistanceDecay::PowerLaw,
                                 models::DistanceDecay::Linear,
+                                models::DistanceDecay::LogisticStep,
                             ];
                             let mut curr_idx = decays
                                 .iter()
                                 .position(|&d| d == state.decay_func)
                                 .unwrap_or(0);
-                            if curr_idx < 3 {
+                            if curr_idx < 4 {
                                 curr_idx += 1;
                             } else {
                                 curr_idx = 0;
@@ -1006,7 +1142,9 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                             if state.sigma < 1500.0 {
                                 state.sigma += 50.0;
                             }
-                        } else if state.selected_option >= 6 && state.selected_option <= max_weight_option_index {
+                        } else if state.selected_option >= 6
+                            && state.selected_option <= max_weight_option_index
+                        {
                             let res_name = CONFIGURABLE_RESOURCES[state.selected_option - 6];
                             let val = weights.entry(res_name.to_string()).or_insert(0.0);
                             *val = (*val + 0.1).clamp(-10.0, 10.0);
@@ -1017,7 +1155,9 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
                         }
                     }
                     KeyCode::Char(' ') => {
-                        if state.selected_option >= 6 && state.selected_option <= max_weight_option_index {
+                        if state.selected_option >= 6
+                            && state.selected_option <= max_weight_option_index
+                        {
                             let res_name = CONFIGURABLE_RESOURCES[state.selected_option - 6];
                             let val = weights.entry(res_name.to_string()).or_insert(0.0);
                             if *val == 0.0 {
@@ -1061,9 +1201,32 @@ fn run_tui_loop<B: ratatui::backend::Backend>(
 
                             let nodes_clone = nodes.to_vec();
                             thread::spawn(move || {
-                                let result = optimizer::optimize(&nodes_clone, &config);
-                                let _ = tx.send(result);
+                                let results = optimizer::optimize(&nodes_clone, &config);
+                                let _ = tx.send(results);
                             });
+                        }
+                    }
+                    // Cycle through top-N candidates with [ and ] keys
+                    KeyCode::Char('[') => {
+                        if !state.opt_results.is_empty() && state.selected_candidate > 0 {
+                            state.selected_candidate -= 1;
+                            state.status_msg = format!(
+                                "Viewing candidate #{} of {}",
+                                state.selected_candidate + 1,
+                                state.opt_results.len()
+                            );
+                        }
+                    }
+                    KeyCode::Char(']') => {
+                        if !state.opt_results.is_empty()
+                            && state.selected_candidate + 1 < state.opt_results.len()
+                        {
+                            state.selected_candidate += 1;
+                            state.status_msg = format!(
+                                "Viewing candidate #{} of {}",
+                                state.selected_candidate + 1,
+                                state.opt_results.len()
+                            );
                         }
                     }
                     _ => {}
@@ -1214,6 +1377,7 @@ fn main() {
                             models::DistanceDecay::PowerLaw
                         }
                         "linear" => models::DistanceDecay::Linear,
+                        "logisticstep" | "step" => models::DistanceDecay::LogisticStep,
                         _ => {
                             eprintln!(
                                 "Error: Invalid decay function value '{}'. Choose from: gaussian, exponential, powerlaw, linear",
@@ -1386,6 +1550,7 @@ fn run_full_simulation_matrix(nodes: &[models::ResourceNode]) {
         models::DistanceDecay::Exponential,
         models::DistanceDecay::PowerLaw,
         models::DistanceDecay::Linear,
+        models::DistanceDecay::LogisticStep,
     ];
     let sigma = 700.0;
 
@@ -1429,7 +1594,9 @@ fn run_full_simulation_matrix(nodes: &[models::ResourceNode]) {
                 },
             };
             apply_preset_weights(config.preset_idx, &mut opt_config.weights);
-            let res = optimizer::optimize(nodes, &opt_config);
+            // Simulation mode: take the single best result (#1 candidate) from the Vec
+            let mut all_res = optimizer::optimize(nodes, &opt_config);
+            let res = all_res.remove(0);
             (config, res)
         })
         .collect();
@@ -1468,6 +1635,7 @@ fn run_full_simulation_matrix(nodes: &[models::ResourceNode]) {
             models::DistanceDecay::Exponential => "Exponential",
             models::DistanceDecay::PowerLaw => "Power-Law",
             models::DistanceDecay::Linear => "Linear",
+            models::DistanceDecay::LogisticStep => "Logistic-Step",
         };
         writeln!(
             file,
@@ -1532,6 +1700,7 @@ fn run_full_simulation_matrix(nodes: &[models::ResourceNode]) {
             models::DistanceDecay::Exponential => "Exponential",
             models::DistanceDecay::PowerLaw => "Power-Law",
             models::DistanceDecay::Linear => "Linear",
+            models::DistanceDecay::LogisticStep => "Logistic-Step",
         }
         .to_string();
         *decay_spawn_counts
@@ -1563,8 +1732,9 @@ fn run_full_simulation_matrix(nodes: &[models::ResourceNode]) {
     writeln!(rfile, "|---|---|---|").unwrap();
     let mut sorted_totals: Vec<(String, i32)> = total_counts.clone().into_iter().collect();
     sorted_totals.sort_by(|a, b| b.1.cmp(&a.1));
+    let total_runs_f = results.len() as f64;
     for (name, count) in &sorted_totals {
-        let pct = (*count as f64 / 216.0) * 100.0;
+        let pct = (*count as f64 / total_runs_f) * 100.0;
         writeln!(rfile, "| **{}** | {} | {:.2}% |", name, count, pct).unwrap();
     }
 
@@ -1588,6 +1758,7 @@ fn run_full_simulation_matrix(nodes: &[models::ResourceNode]) {
         "Phase 5: Quantum",
         "Collectible Hunting",
     ];
+    let preset_denom = total_runs_f / 6.0;
     for preset in &preset_list {
         let nf = *preset_spawn_counts
             .get(&(preset.to_string(), "Northern Forest".to_string()))
@@ -1606,13 +1777,13 @@ fn run_full_simulation_matrix(nodes: &[models::ResourceNode]) {
             "| {} | {} ({:.1}%) | {} ({:.1}%) | {} ({:.1}%) | {} ({:.1}%) |",
             preset,
             nf,
-            (nf as f64 / 36.0) * 100.0,
+            (nf as f64 / preset_denom) * 100.0,
             dd,
-            (dd as f64 / 36.0) * 100.0,
+            (dd as f64 / preset_denom) * 100.0,
             rd,
-            (rd as f64 / 36.0) * 100.0,
+            (rd as f64 / preset_denom) * 100.0,
             gf,
-            (gf as f64 / 36.0) * 100.0,
+            (gf as f64 / preset_denom) * 100.0,
         )
         .unwrap();
     }
@@ -1626,6 +1797,7 @@ fn run_full_simulation_matrix(nodes: &[models::ResourceNode]) {
     .unwrap();
     writeln!(rfile, "|---|---|---|---|---|").unwrap();
     let utility_list = vec!["Cobb-Douglas", "Leontief", "Linear"];
+    let utility_denom = total_runs_f / 3.0;
     for utility in &utility_list {
         let nf = *utility_spawn_counts
             .get(&(utility.to_string(), "Northern Forest".to_string()))
@@ -1644,13 +1816,13 @@ fn run_full_simulation_matrix(nodes: &[models::ResourceNode]) {
             "| {} | {} ({:.1}%) | {} ({:.1}%) | {} ({:.1}%) | {} ({:.1}%) |",
             utility,
             nf,
-            (nf as f64 / 72.0) * 100.0,
+            (nf as f64 / utility_denom) * 100.0,
             dd,
-            (dd as f64 / 72.0) * 100.0,
+            (dd as f64 / utility_denom) * 100.0,
             rd,
-            (rd as f64 / 72.0) * 100.0,
+            (rd as f64 / utility_denom) * 100.0,
             gf,
-            (gf as f64 / 72.0) * 100.0,
+            (gf as f64 / utility_denom) * 100.0,
         )
         .unwrap();
     }
@@ -1663,7 +1835,14 @@ fn run_full_simulation_matrix(nodes: &[models::ResourceNode]) {
     )
     .unwrap();
     writeln!(rfile, "|---|---|---|---|---|").unwrap();
-    let decay_list = vec!["Gaussian", "Exponential", "Power-Law", "Linear"];
+    let decay_list = vec![
+        "Gaussian",
+        "Exponential",
+        "Power-Law",
+        "Linear",
+        "Logistic-Step",
+    ];
+    let decay_denom = total_runs_f / 5.0;
     for decay in &decay_list {
         let nf = *decay_spawn_counts
             .get(&(decay.to_string(), "Northern Forest".to_string()))
@@ -1682,22 +1861,18 @@ fn run_full_simulation_matrix(nodes: &[models::ResourceNode]) {
             "| {} | {} ({:.1}%) | {} ({:.1}%) | {} ({:.1}%) | {} ({:.1}%) |",
             decay,
             nf,
-            (nf as f64 / 54.0) * 100.0,
+            (nf as f64 / decay_denom) * 100.0,
             dd,
-            (dd as f64 / 54.0) * 100.0,
+            (dd as f64 / decay_denom) * 100.0,
             rd,
-            (rd as f64 / 54.0) * 100.0,
+            (rd as f64 / decay_denom) * 100.0,
             gf,
-            (gf as f64 / 54.0) * 100.0,
+            (gf as f64 / decay_denom) * 100.0,
         )
         .unwrap();
     }
 
-    writeln!(
-        rfile,
-        "\n## 5. Influence of Purity Override Settings"
-    )
-    .unwrap();
+    writeln!(rfile, "\n## 5. Influence of Purity Override Settings").unwrap();
     writeln!(rfile, "Purity overrides alter the multiplier applied to database resource nodes. Excluding Impure nodes, this section shows recommendations under Default (database-purity), Normal (all normal 1x), and Pure (all pure 2x) override settings:").unwrap();
     writeln!(
         rfile,
@@ -1706,6 +1881,7 @@ fn run_full_simulation_matrix(nodes: &[models::ResourceNode]) {
     .unwrap();
     writeln!(rfile, "|---|---|---|---|---|").unwrap();
     let purity_list = vec!["Default", "Normal", "Pure"];
+    let purity_denom = total_runs_f / 3.0;
     for purity in &purity_list {
         let nf = *purity_spawn_counts
             .get(&(purity.to_string(), "Northern Forest".to_string()))
@@ -1724,20 +1900,20 @@ fn run_full_simulation_matrix(nodes: &[models::ResourceNode]) {
             "| {} | {} ({:.1}%) | {} ({:.1}%) | {} ({:.1}%) | {} ({:.1}%) |",
             purity,
             nf,
-            (nf as f64 / 72.0) * 100.0,
+            (nf as f64 / purity_denom) * 100.0,
             dd,
-            (dd as f64 / 72.0) * 100.0,
+            (dd as f64 / purity_denom) * 100.0,
             rd,
-            (rd as f64 / 72.0) * 100.0,
+            (rd as f64 / purity_denom) * 100.0,
             gf,
-            (gf as f64 / 72.0) * 100.0,
+            (gf as f64 / purity_denom) * 100.0,
         )
         .unwrap();
     }
 
     writeln!(rfile, "\n## 6. Key Analysis & Takeaways").unwrap();
     writeln!(rfile, "\n### A. The Northern Forest Dominance Bias").unwrap();
-    writeln!(rfile, "The **Northern Forest** remains the most dominant recommendation across the entire matrix (occurring in **{:.2}%** of all configurations). This is due to its extremely high density of high-purity nodes clustered close to each other. Even with large radius settings or heavy distance penalties, the concentration of Pure Iron, Copper, Limestone, and Coal nodes makes it mathematically superior for almost all early-to-mid-game phases.", (*total_counts.get("Northern Forest").unwrap_or(&0) as f64 / 216.0) * 100.0).unwrap();
+    writeln!(rfile, "The **Northern Forest** remains the most dominant recommendation across the entire matrix (occurring in **{:.2}%** of all configurations). This is due to its extremely high density of high-purity nodes clustered close to each other. Even with large radius settings or heavy distance penalties, the concentration of Pure Iron, Copper, Limestone, and Coal nodes makes it mathematically superior for almost all early-to-mid-game phases.", (*total_counts.get("Northern Forest").unwrap_or(&0) as f64 / total_runs_f) * 100.0).unwrap();
     writeln!(rfile, "\n### B. When Dune Desert Emerges").unwrap();
     writeln!(rfile, "The **Dune Desert** becomes highly optimal in **Phase 4 (Late Game)** and **Phase 5 (Quantum)**. In these phases, the weight of rare resources (like Bauxite, Sulfur, and SAM) increases. The Dune Desert contains vast quantities of these resources plus ample space, and as the walking radius (sigma) increases to 800m+, the optimizer shifts toward the Dune Desert to capture these nodes concurrently.").unwrap();
     writeln!(rfile, "\n### C. Utility Function Impact").unwrap();
@@ -1751,7 +1927,7 @@ fn run_full_simulation_matrix(nodes: &[models::ResourceNode]) {
     writeln!(rfile, "The logistical walking radius for this simulation matrix was held constant at the new default of **700 meters**.").unwrap();
 
     writeln!(rfile, "\n## 7. Raw Results Dataset").unwrap();
-    writeln!(rfile, "The complete raw dataset of all 216 runs has been saved to the workspace as `simulation_results.csv`.").unwrap();
+    writeln!(rfile, "The complete raw dataset of all {} runs has been saved to the workspace as `simulation_results.csv`.", results.len()).unwrap();
 
     println!("Saved detailed analysis report to {}", report_path);
 }

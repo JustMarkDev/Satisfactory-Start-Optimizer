@@ -85,8 +85,10 @@ impl GamePhase {
                 weights.insert("iron".to_string(), 1.0);
                 weights.insert("copper".to_string(), 0.8);
                 weights.insert("limestone".to_string(), 0.7);
-                weights.insert("caterium".to_string(), 0.1);
-                weights.insert("uranium".to_string(), -2.0); // severe radiation penalty
+                // Forward-looking: coal unlocked at Tier 3, proximity still valuable
+                weights.insert("coal".to_string(), 0.2);
+                weights.insert("caterium".to_string(), 0.2); // M.A.M. research value
+                weights.insert("uranium".to_string(), -2.0); // severe radiation penalty (no hazmat suit)
                 weights.insert("blueslug".to_string(), 0.10);
                 weights.insert("yellowslug".to_string(), 0.15);
                 weights.insert("purpleslug".to_string(), 0.20);
@@ -99,9 +101,13 @@ impl GamePhase {
                 weights.insert("copper".to_string(), 0.8);
                 weights.insert("limestone".to_string(), 0.7);
                 weights.insert("coal".to_string(), 1.0);
-                weights.insert("water".to_string(), 0.8); // Coal Power requires water bodies
+                weights.insert("water".to_string(), 1.2); // Coal Power requires water
                 weights.insert("caterium".to_string(), 0.4);
-                weights.insert("uranium".to_string(), -2.0); // radiation penalty
+                // Black Powder (Nobelisk/ammo) requires sulfur + coal from Tier 3
+                weights.insert("sulfur".to_string(), 0.3);
+                // Crystal Oscillators for Computers (Tier 4) need quartz
+                weights.insert("quartz".to_string(), 0.2);
+                weights.insert("uranium".to_string(), -2.0); // radiation penalty (no hazmat suit)
                 weights.insert("blueslug".to_string(), 0.08);
                 weights.insert("yellowslug".to_string(), 0.12);
                 weights.insert("purpleslug".to_string(), 0.18);
@@ -114,12 +120,15 @@ impl GamePhase {
                 weights.insert("copper".to_string(), 0.8);
                 weights.insert("limestone".to_string(), 0.6);
                 weights.insert("coal".to_string(), 0.8);
-                weights.insert("water".to_string(), 0.6);
+                // Oil refinery chains (Heavy Oil Residue, Turbofuel) are extremely water-hungry
+                weights.insert("water".to_string(), 0.9);
                 weights.insert("oil".to_string(), 1.0); // Oil refinery focus
                 weights.insert("sulfur".to_string(), 0.6);
                 weights.insert("quartz".to_string(), 0.6);
                 weights.insert("caterium".to_string(), 0.6);
-                weights.insert("uranium".to_string(), -2.0); // radiation penalty
+                // Forward-looking: aluminium R&D begins transitioning here
+                weights.insert("bauxite".to_string(), 0.3);
+                weights.insert("uranium".to_string(), -2.0); // radiation penalty (no hazmat suit yet)
                 weights.insert("blueslug".to_string(), 0.05);
                 weights.insert("yellowslug".to_string(), 0.08);
                 weights.insert("purpleslug".to_string(), 0.12);
@@ -132,7 +141,7 @@ impl GamePhase {
                 weights.insert("copper".to_string(), 0.6);
                 weights.insert("limestone".to_string(), 0.5);
                 weights.insert("coal".to_string(), 0.6);
-                weights.insert("water".to_string(), 0.6);
+                weights.insert("water".to_string(), 1.2);
                 weights.insert("oil".to_string(), 0.8);
                 weights.insert("sulfur".to_string(), 0.8);
                 weights.insert("quartz".to_string(), 0.8);
@@ -140,7 +149,8 @@ impl GamePhase {
                 weights.insert("bauxite".to_string(), 1.0); // Aluminum focus
                 weights.insert("nitrogenwell".to_string(), 0.8);
                 weights.insert("geyser".to_string(), 0.8);
-                weights.insert("uranium".to_string(), 0.5); // Nuclear is viable
+                // Nuclear power is the primary goal at Tier 7-8; player has hazmat suit
+                weights.insert("uranium".to_string(), 0.6);
                 weights.insert("sam".to_string(), 0.6);
                 weights.insert("blueslug".to_string(), 0.05);
                 weights.insert("yellowslug".to_string(), 0.08);
@@ -162,8 +172,9 @@ impl GamePhase {
                 weights.insert("bauxite".to_string(), 0.8);
                 weights.insert("nitrogenwell".to_string(), 0.8);
                 weights.insert("geyser".to_string(), 0.8);
-                weights.insert("uranium".to_string(), 0.8);
-                weights.insert("sam".to_string(), 1.0); // Quantum focus
+                // Ficsonium production requires uranium; player has hazmat suit at this stage
+                weights.insert("uranium".to_string(), 0.5);
+                weights.insert("sam".to_string(), 1.0); // Quantum / Ficsonium focus
                 weights.insert("blueslug".to_string(), 0.03);
                 weights.insert("yellowslug".to_string(), 0.05);
                 weights.insert("purpleslug".to_string(), 0.08);
@@ -266,6 +277,7 @@ pub enum DistanceDecay {
     Exponential,
     PowerLaw,
     Linear,
+    LogisticStep,
 }
 
 impl DistanceDecay {
@@ -275,6 +287,7 @@ impl DistanceDecay {
             DistanceDecay::Exponential => "Exponential (Linear Cost)",
             DistanceDecay::PowerLaw => "Power-Law (Heavy Tail)",
             DistanceDecay::Linear => "Linear (Hard Cutoff)",
+            DistanceDecay::LogisticStep => "Logistic (Step Function / Trains)",
         }
     }
 }
@@ -303,7 +316,7 @@ impl Default for OptimizerConfig {
         weights.insert("bauxite".to_string(), 0.1);
         weights.insert("uranium".to_string(), 0.05);
         weights.insert("sam".to_string(), 0.05);
-        
+
         // Collectibles / Research (slightly weighted to guide base selection)
         weights.insert("blueslug".to_string(), 0.05);
         weights.insert("yellowslug".to_string(), 0.08);
@@ -311,7 +324,7 @@ impl Default for OptimizerConfig {
         weights.insert("mercer".to_string(), 0.10);
         weights.insert("somersloop".to_string(), 0.10);
         weights.insert("harddrive".to_string(), 0.15);
-        
+
         Self {
             sigma: 700.0,
             weights,

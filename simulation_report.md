@@ -1,61 +1,62 @@
 # FICSIT Start Optimizer Simulation Matrix Report
 
-This report presents the analysis of running **216 optimization simulations** across every combination of presets, purity overrides (excluding Impure), utility functions, and distance decays at a fixed radius of **700 meters** using the **Hybrid** search strategy.
+This report presents the analysis of running **270 optimization simulations** across every combination of presets, purity overrides (excluding Impure), utility functions, and distance decays at a fixed radius of **700 meters** using the **Hybrid** search strategy.
 
 ## 1. Global Start Location Frequencies
-Across all 216 runs, the following shows how often each starting zone was selected as the mathematically optimal starting location:
+Across all 270 runs, the following shows how often each starting zone was selected as the mathematically optimal starting location:
 
 | Starting Zone | Occurrences | Percentage |
 |---|---|---|
-| **Northern Forest** | 100 | 46.30% |
-| **Dune Desert** | 98 | 45.37% |
-| **Grass Fields** | 16 | 7.41% |
-| **Rocky Desert** | 2 | 0.93% |
+| **Dune Desert** | 117 | 43.33% |
+| **Northern Forest** | 78 | 28.89% |
+| **Grass Fields** | 44 | 16.30% |
+| **Rocky Desert** | 31 | 11.48% |
 
 ## 2. Recommendation Frequencies by Game Phase Preset
 This section breaks down starting location preferences by each gameplay phase preset. This reveals which zones are optimal for early game vs. late/quantum end-game:
 
 | Preset | Northern Forest | Dune Desert | Rocky Desert | Grass Fields |
 |---|---|---|---|---|
-| Phase 1: Early Game | 2 (5.6%) | 32 (88.9%) | 0 (0.0%) | 2 (5.6%) |
-| Phase 2: Steel & Coal | 2 (5.6%) | 33 (91.7%) | 1 (2.8%) | 0 (0.0%) |
-| Phase 3: Oil & Quartz | 11 (30.6%) | 17 (47.2%) | 1 (2.8%) | 7 (19.4%) |
-| Phase 4: Late Game | 23 (63.9%) | 11 (30.6%) | 0 (0.0%) | 2 (5.6%) |
-| Phase 5: Quantum | 26 (72.2%) | 5 (13.9%) | 0 (0.0%) | 5 (13.9%) |
-| Collectible Hunting | 36 (100.0%) | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) |
+| Phase 1: Early Game | 0 (0.0%) | 11 (24.4%) | 9 (20.0%) | 25 (55.6%) |
+| Phase 2: Steel & Coal | 0 (0.0%) | 23 (51.1%) | 12 (26.7%) | 10 (22.2%) |
+| Phase 3: Oil & Quartz | 1 (2.2%) | 37 (82.2%) | 4 (8.9%) | 3 (6.7%) |
+| Phase 4: Late Game | 15 (33.3%) | 26 (57.8%) | 3 (6.7%) | 1 (2.2%) |
+| Phase 5: Quantum | 19 (42.2%) | 20 (44.4%) | 3 (6.7%) | 3 (6.7%) |
+| Collectible Hunting | 43 (95.6%) | 0 (0.0%) | 0 (0.0%) | 2 (4.4%) |
 
 ## 3. Influence of the Utility Function
 How the math combines resource values dramatically impacts the recommended start zone. Cobb-Douglas enforces balance, Leontief maximizes bottlenecks, and Linear Additive looks purely at volume:
 
 | Utility Function | Northern Forest | Dune Desert | Rocky Desert | Grass Fields |
 |---|---|---|---|---|
-| Cobb-Douglas | 45 (62.5%) | 19 (26.4%) | 0 (0.0%) | 8 (11.1%) |
-| Leontief | 30 (41.7%) | 33 (45.8%) | 2 (2.8%) | 7 (9.7%) |
-| Linear | 25 (34.7%) | 46 (63.9%) | 0 (0.0%) | 1 (1.4%) |
+| Cobb-Douglas | 23 (25.6%) | 47 (52.2%) | 0 (0.0%) | 20 (22.2%) |
+| Leontief | 34 (37.8%) | 16 (17.8%) | 31 (34.4%) | 9 (10.0%) |
+| Linear | 21 (23.3%) | 54 (60.0%) | 0 (0.0%) | 15 (16.7%) |
 
 ## 4. Influence of Distance Decay
 Distance decay determines how heavily nodes are penalized as you walk away. Gaussian is smooth, Exponential decay is linear with respect to log distance, Power-Law has a heavy tail (looks further out), and Linear has a hard cutoff:
 
 | Distance Decay | Northern Forest | Dune Desert | Rocky Desert | Grass Fields |
 |---|---|---|---|---|
-| Gaussian | 27 (50.0%) | 26 (48.1%) | 1 (1.9%) | 0 (0.0%) |
-| Exponential | 31 (57.4%) | 23 (42.6%) | 0 (0.0%) | 0 (0.0%) |
-| Power-Law | 29 (53.7%) | 22 (40.7%) | 1 (1.9%) | 2 (3.7%) |
-| Linear | 13 (24.1%) | 27 (50.0%) | 0 (0.0%) | 14 (25.9%) |
+| Gaussian | 19 (35.2%) | 22 (40.7%) | 4 (7.4%) | 9 (16.7%) |
+| Exponential | 16 (29.6%) | 28 (51.9%) | 6 (11.1%) | 4 (7.4%) |
+| Power-Law | 18 (33.3%) | 21 (38.9%) | 6 (11.1%) | 9 (16.7%) |
+| Linear | 7 (13.0%) | 19 (35.2%) | 9 (16.7%) | 19 (35.2%) |
+| Logistic-Step | 18 (33.3%) | 27 (50.0%) | 6 (11.1%) | 3 (5.6%) |
 
 ## 5. Influence of Purity Override Settings
 Purity overrides alter the multiplier applied to database resource nodes. Excluding Impure nodes, this section shows recommendations under Default (database-purity), Normal (all normal 1x), and Pure (all pure 2x) override settings:
 
 | Purity Override | Northern Forest | Dune Desert | Rocky Desert | Grass Fields |
 |---|---|---|---|---|
-| Default | 41 (56.9%) | 27 (37.5%) | 1 (1.4%) | 3 (4.2%) |
-| Normal | 30 (41.7%) | 36 (50.0%) | 0 (0.0%) | 6 (8.3%) |
-| Pure | 29 (40.3%) | 35 (48.6%) | 1 (1.4%) | 7 (9.7%) |
+| Default | 27 (30.0%) | 46 (51.1%) | 11 (12.2%) | 6 (6.7%) |
+| Normal | 22 (24.4%) | 40 (44.4%) | 10 (11.1%) | 18 (20.0%) |
+| Pure | 29 (32.2%) | 31 (34.4%) | 10 (11.1%) | 20 (22.2%) |
 
 ## 6. Key Analysis & Takeaways
 
 ### A. The Northern Forest Dominance Bias
-The **Northern Forest** remains the most dominant recommendation across the entire matrix (occurring in **46.30%** of all configurations). This is due to its extremely high density of high-purity nodes clustered close to each other. Even with large radius settings or heavy distance penalties, the concentration of Pure Iron, Copper, Limestone, and Coal nodes makes it mathematically superior for almost all early-to-mid-game phases.
+The **Northern Forest** remains the most dominant recommendation across the entire matrix (occurring in **28.89%** of all configurations). This is due to its extremely high density of high-purity nodes clustered close to each other. Even with large radius settings or heavy distance penalties, the concentration of Pure Iron, Copper, Limestone, and Coal nodes makes it mathematically superior for almost all early-to-mid-game phases.
 
 ### B. When Dune Desert Emerges
 The **Dune Desert** becomes highly optimal in **Phase 4 (Late Game)** and **Phase 5 (Quantum)**. In these phases, the weight of rare resources (like Bauxite, Sulfur, and SAM) increases. The Dune Desert contains vast quantities of these resources plus ample space, and as the walking radius (sigma) increases to 800m+, the optimizer shifts toward the Dune Desert to capture these nodes concurrently.
@@ -73,4 +74,4 @@ The **Dune Desert** becomes highly optimal in **Phase 4 (Late Game)** and **Phas
 The logistical walking radius for this simulation matrix was held constant at the new default of **700 meters**.
 
 ## 7. Raw Results Dataset
-The complete raw dataset of all 216 runs has been saved to the workspace as `simulation_results.csv`.
+The complete raw dataset of all 270 runs has been saved to the workspace as `simulation_results.csv`.

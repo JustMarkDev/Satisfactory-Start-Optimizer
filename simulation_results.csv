@@ -1,217 +1,271 @@
 Preset,Purity,Utility,Decay,Radius,X,Y,Z,Score,Spawn,SpawnDistance
-"Phase 1: Early Game","Default","Cobb-Douglas","Gaussian",700,309619.59,-135482.09,4773.52,6764.5492,"Dune Desert",1019.79
-"Phase 1: Early Game","Default","Cobb-Douglas","Exponential",700,67551.18,-83531.25,9832.80,1289.0736,"Northern Forest",678.60
-"Phase 1: Early Game","Default","Cobb-Douglas","Power-Law",700,71819.95,-174095.70,1624.94,10476.3815,"Northern Forest",1105.90
-"Phase 1: Early Game","Default","Cobb-Douglas","Linear",700,338011.12,-131702.00,5009.74,39.5880,"Dune Desert",1254.46
-"Phase 1: Early Game","Default","Leontief","Gaussian",700,333239.24,-135644.08,4505.59,9.4797,"Dune Desert",1192.58
-"Phase 1: Early Game","Default","Leontief","Exponential",700,344444.19,-125369.72,5004.63,6.7171,"Dune Desert",1344.28
-"Phase 1: Early Game","Default","Leontief","Power-Law",700,343124.62,-120796.38,5535.79,8.4169,"Dune Desert",1363.52
-"Phase 1: Early Game","Default","Leontief","Linear",700,351304.30,-194094.49,4345.67,2.2534,"Dune Desert",1124.35
-"Phase 1: Early Game","Default","Linear","Gaussian",700,313958.77,-133128.46,4859.01,38.4910,"Dune Desert",1066.73
-"Phase 1: Early Game","Default","Linear","Exponential",700,328736.98,-133715.48,4758.02,27.6572,"Dune Desert",1170.20
-"Phase 1: Early Game","Default","Linear","Power-Law",700,328731.26,-133715.88,4758.06,40.2618,"Dune Desert",1170.15
-"Phase 1: Early Game","Default","Linear","Linear",700,323404.08,-145694.08,4167.23,11.6862,"Dune Desert",1053.16
-"Phase 1: Early Game","Normal","Cobb-Douglas","Gaussian",700,307319.77,-138278.27,4524.33,4124.5006,"Dune Desert",983.66
-"Phase 1: Early Game","Normal","Cobb-Douglas","Exponential",700,302655.40,-129938.90,4595.21,1539.2969,"Dune Desert",1016.64
-"Phase 1: Early Game","Normal","Cobb-Douglas","Power-Law",700,319014.55,-142193.99,4348.04,8255.2552,"Dune Desert",1041.20
-"Phase 1: Early Game","Normal","Cobb-Douglas","Linear",700,-47650.48,275913.11,-2503.18,33.7068,"Grass Fields",719.53
-"Phase 1: Early Game","Normal","Leontief","Gaussian",700,310112.76,-131942.46,4871.52,7.1578,"Dune Desert",1049.23
-"Phase 1: Early Game","Normal","Leontief","Exponential",700,338014.47,-131709.71,5009.10,5.0172,"Dune Desert",1254.44
-"Phase 1: Early Game","Normal","Leontief","Power-Law",700,411717.22,-183324.50,3470.16,5.5505,"Dune Desert",1737.77
-"Phase 1: Early Game","Normal","Leontief","Linear",700,362108.41,-197008.60,4184.69,2.0956,"Dune Desert",1227.98
-"Phase 1: Early Game","Normal","Linear","Gaussian",700,328144.16,-139076.09,4091.83,30.9353,"Dune Desert",1131.35
-"Phase 1: Early Game","Normal","Linear","Exponential",700,328728.94,-133712.06,4758.53,21.8490,"Dune Desert",1170.16
-"Phase 1: Early Game","Normal","Linear","Power-Law",700,330730.11,-132131.49,4922.70,26.5772,"Dune Desert",1195.64
-"Phase 1: Early Game","Normal","Linear","Linear",700,313950.50,-133117.22,4858.95,9.2970,"Dune Desert",1066.75
-"Phase 1: Early Game","Pure","Cobb-Douglas","Gaussian",700,310435.12,-136749.46,4765.79,41849.1861,"Dune Desert",1016.21
-"Phase 1: Early Game","Pure","Cobb-Douglas","Exponential",700,311616.62,-149039.62,4137.92,14750.8396,"Dune Desert",940.48
-"Phase 1: Early Game","Pure","Cobb-Douglas","Power-Law",700,318995.81,-142160.65,4349.96,54952.5314,"Dune Desert",1041.27
-"Phase 1: Early Game","Pure","Cobb-Douglas","Linear",700,-47705.48,275944.11,-2501.66,374.7173,"Grass Fields",719.21
-"Phase 1: Early Game","Pure","Leontief","Gaussian",700,360096.63,-188714.40,5069.11,12.7661,"Dune Desert",1219.68
-"Phase 1: Early Game","Pure","Leontief","Exponential",700,344644.12,-125881.93,4801.47,8.7975,"Dune Desert",1342.62
-"Phase 1: Early Game","Pure","Leontief","Power-Law",700,411717.22,-183324.50,3470.16,11.0968,"Dune Desert",1737.77
-"Phase 1: Early Game","Pure","Leontief","Linear",700,285496.00,-130994.19,3690.60,1.7236,"Dune Desert",911.69
-"Phase 1: Early Game","Pure","Linear","Gaussian",700,333236.96,-135644.46,4505.52,57.0217,"Dune Desert",1192.56
-"Phase 1: Early Game","Pure","Linear","Exponential",700,329379.10,-134366.66,4675.28,37.1369,"Dune Desert",1170.86
-"Phase 1: Early Game","Pure","Linear","Power-Law",700,411655.16,-183250.32,3478.31,49.9182,"Dune Desert",1737.27
-"Phase 1: Early Game","Pure","Linear","Linear",700,313950.50,-133117.22,4858.95,18.5941,"Dune Desert",1066.75
-"Phase 2: Steel & Coal","Default","Cobb-Douglas","Gaussian",700,337689.94,-173061.44,4659.33,29122.8666,"Dune Desert",1044.40
-"Phase 2: Steel & Coal","Default","Cobb-Douglas","Exponential",700,150523.53,-34957.97,8720.81,3952.0498,"Northern Forest",1602.72
-"Phase 2: Steel & Coal","Default","Cobb-Douglas","Power-Law",700,-47655.21,-107987.21,3123.65,31232.3061,"Northern Forest",509.37
-"Phase 2: Steel & Coal","Default","Cobb-Douglas","Linear",700,362859.02,-138464.49,5394.62,44.6347,"Dune Desert",1421.68
-"Phase 2: Steel & Coal","Default","Leontief","Gaussian",700,370880.53,-139735.88,5268.37,0.9533,"Dune Desert",1485.49
-"Phase 2: Steel & Coal","Default","Leontief","Exponential",700,420000.00,4131.91,-857.42,1.0903,"Dune Desert",2797.36
-"Phase 2: Steel & Coal","Default","Leontief","Power-Law",700,-244951.00,-308529.00,-774.57,1.3750,"Rocky Desert",1174.70
-"Phase 2: Steel & Coal","Default","Leontief","Linear",700,385831.00,-169871.00,4553.13,0.9289,"Dune Desert",1512.52
-"Phase 2: Steel & Coal","Default","Linear","Gaussian",700,328727.00,-139478.88,4064.68,41.4003,"Dune Desert",1133.39
-"Phase 2: Steel & Coal","Default","Linear","Exponential",700,329376.83,-134363.32,4675.69,29.9843,"Dune Desert",1170.86
-"Phase 2: Steel & Coal","Default","Linear","Power-Law",700,329104.47,-133850.69,4737.26,43.0559,"Dune Desert",1172.11
-"Phase 2: Steel & Coal","Default","Linear","Linear",700,324693.36,-145109.92,4138.21,12.4300,"Dune Desert",1066.94
-"Phase 2: Steel & Coal","Normal","Cobb-Douglas","Gaussian",700,336873.48,-173458.64,4671.36,14109.4641,"Dune Desert",1035.36
-"Phase 2: Steel & Coal","Normal","Cobb-Douglas","Exponential",700,333743.95,-135350.90,4667.77,2690.9069,"Dune Desert",1198.35
-"Phase 2: Steel & Coal","Normal","Cobb-Douglas","Power-Law",700,240787.68,-74894.07,4864.11,27698.0298,"Dune Desert",1351.08
-"Phase 2: Steel & Coal","Normal","Cobb-Douglas","Linear",700,358916.06,-135453.69,5428.04,13.5127,"Dune Desert",1403.50
-"Phase 2: Steel & Coal","Normal","Leontief","Gaussian",700,370451.52,-137184.01,5355.53,0.9430,"Dune Desert",1493.98
-"Phase 2: Steel & Coal","Normal","Leontief","Exponential",700,383913.77,88371.61,1450.42,0.9411,"Dune Desert",3312.65
-"Phase 2: Steel & Coal","Normal","Leontief","Power-Law",700,401120.00,136160.00,1578.30,1.3750,"Dune Desert",3818.20
-"Phase 2: Steel & Coal","Normal","Leontief","Linear",700,391041.04,-175196.40,4302.76,0.8336,"Dune Desert",1549.99
-"Phase 2: Steel & Coal","Normal","Linear","Gaussian",700,333233.42,-135638.49,4506.01,34.1618,"Dune Desert",1192.56
-"Phase 2: Steel & Coal","Normal","Linear","Exponential",700,329379.10,-134366.66,4675.28,23.7871,"Dune Desert",1170.86
-"Phase 2: Steel & Coal","Normal","Linear","Power-Law",700,343421.06,-121343.72,5427.37,28.2477,"Dune Desert",1362.20
-"Phase 2: Steel & Coal","Normal","Linear","Linear",700,324693.69,-145110.41,4138.20,9.6982,"Dune Desert",1066.94
-"Phase 2: Steel & Coal","Pure","Cobb-Douglas","Gaussian",700,335056.81,-155477.66,4136.61,325352.1034,"Dune Desert",1095.83
-"Phase 2: Steel & Coal","Pure","Cobb-Douglas","Exponential",700,351610.81,-143842.87,4691.97,59364.3393,"Dune Desert",1297.45
-"Phase 2: Steel & Coal","Pure","Cobb-Douglas","Power-Law",700,330756.84,-132126.69,4923.06,476612.4879,"Dune Desert",1195.87
-"Phase 2: Steel & Coal","Pure","Cobb-Douglas","Linear",700,359024.12,-135456.00,5437.00,257.0917,"Dune Desert",1404.41
-"Phase 2: Steel & Coal","Pure","Leontief","Gaussian",700,413982.00,-202298.00,942.48,0.9301,"Dune Desert",1741.52
-"Phase 2: Steel & Coal","Pure","Leontief","Exponential",700,415000.00,55520.00,501.09,1.3750,"Dune Desert",3180.03
-"Phase 2: Steel & Coal","Pure","Leontief","Power-Law",700,397009.00,223809.00,4211.51,1.3750,"Dune Desert",4613.48
-"Phase 2: Steel & Coal","Pure","Leontief","Linear",700,384726.50,-168575.50,4495.34,0.9289,"Dune Desert",1505.38
-"Phase 2: Steel & Coal","Pure","Linear","Gaussian",700,338020.33,-131704.98,5009.30,63.2167,"Dune Desert",1254.52
-"Phase 2: Steel & Coal","Pure","Linear","Exponential",700,344694.65,-125843.38,4795.10,41.0704,"Dune Desert",1343.25
-"Phase 2: Steel & Coal","Pure","Linear","Power-Law",700,406169.01,-131621.51,4715.03,55.4684,"Dune Desert",1837.26
-"Phase 2: Steel & Coal","Pure","Linear","Linear",700,324638.45,-144996.57,4139.91,19.2759,"Dune Desert",1067.20
-"Phase 3: Oil & Quartz","Default","Cobb-Douglas","Gaussian",700,113372.08,-44776.27,11099.98,23173.0580,"Northern Forest",1220.59
-"Phase 3: Oil & Quartz","Default","Cobb-Douglas","Exponential",700,110334.37,-20834.30,12175.73,4993.3376,"Northern Forest",1302.21
-"Phase 3: Oil & Quartz","Default","Cobb-Douglas","Power-Law",700,81290.90,-9239.87,13917.10,260403.1490,"Northern Forest",1145.88
-"Phase 3: Oil & Quartz","Default","Cobb-Douglas","Linear",700,104067.66,-4082.66,14660.17,1.8283,"Northern Forest",1349.51
-"Phase 3: Oil & Quartz","Default","Leontief","Gaussian",700,281570.62,81685.88,-1453.51,0.5325,"Dune Desert",2946.33
-"Phase 3: Oil & Quartz","Default","Leontief","Exponential",700,287539.27,95397.73,-938.84,0.4595,"Dune Desert",3090.76
-"Phase 3: Oil & Quartz","Default","Leontief","Power-Law",700,85484.99,369615.76,-454.39,1.4417,"Grass Fields",2345.52
-"Phase 3: Oil & Quartz","Default","Leontief","Linear",700,121542.64,194271.42,-5018.30,0.1061,"Grass Fields",2360.15
-"Phase 3: Oil & Quartz","Default","Linear","Gaussian",700,328727.00,-139478.88,4064.68,34.8951,"Dune Desert",1133.39
-"Phase 3: Oil & Quartz","Default","Linear","Exponential",700,329376.83,-134363.32,4675.69,25.4807,"Dune Desert",1170.86
-"Phase 3: Oil & Quartz","Default","Linear","Power-Law",700,343316.45,-121416.05,5433.40,37.1503,"Dune Desert",1360.93
-"Phase 3: Oil & Quartz","Default","Linear","Linear",700,344856.13,-125931.18,4967.92,10.3959,"Dune Desert",1343.96
-"Phase 3: Oil & Quartz","Normal","Cobb-Douglas","Gaussian",700,81794.23,-59129.60,11286.66,5082.3842,"Northern Forest",874.26
-"Phase 3: Oil & Quartz","Normal","Cobb-Douglas","Exponential",700,80509.22,-27121.99,11511.22,1127.3368,"Northern Forest",1021.54
-"Phase 3: Oil & Quartz","Normal","Cobb-Douglas","Power-Law",700,172761.86,-75411.68,2652.00,58042.5452,"Dune Desert",1504.49
-"Phase 3: Oil & Quartz","Normal","Cobb-Douglas","Linear",700,141948.37,223066.01,-6639.02,0.2585,"Grass Fields",2525.17
-"Phase 3: Oil & Quartz","Normal","Leontief","Gaussian",700,-45738.40,-106257.30,2641.25,0.5840,"Northern Forest",485.42
-"Phase 3: Oil & Quartz","Normal","Leontief","Exponential",700,67210.94,-225329.50,1228.28,0.4850,"Northern Forest",1511.01
-"Phase 3: Oil & Quartz","Normal","Leontief","Power-Law",700,413697.95,48863.49,463.71,1.3278,"Dune Desert",3117.39
-"Phase 3: Oil & Quartz","Normal","Leontief","Linear",700,121542.64,194271.42,-5018.30,0.1061,"Grass Fields",2360.15
-"Phase 3: Oil & Quartz","Normal","Linear","Gaussian",700,333241.53,-135646.06,4505.44,28.7691,"Dune Desert",1192.58
-"Phase 3: Oil & Quartz","Normal","Linear","Exponential",700,329376.83,-134363.32,4675.69,20.2242,"Dune Desert",1170.86
-"Phase 3: Oil & Quartz","Normal","Linear","Power-Law",700,343418.03,-121346.91,5427.41,24.6305,"Dune Desert",1362.15
-"Phase 3: Oil & Quartz","Normal","Linear","Linear",700,344856.13,-125931.18,4967.92,8.0243,"Dune Desert",1343.96
-"Phase 3: Oil & Quartz","Pure","Cobb-Douglas","Gaussian",700,81839.94,-59318.93,11340.37,253980.5154,"Northern Forest",874.02
-"Phase 3: Oil & Quartz","Pure","Cobb-Douglas","Exponential",700,62704.87,-51598.82,11162.24,39731.3445,"Northern Forest",735.29
-"Phase 3: Oil & Quartz","Pure","Cobb-Douglas","Power-Law",700,71720.23,-174050.57,1619.42,1645258.9735,"Northern Forest",1104.91
-"Phase 3: Oil & Quartz","Pure","Cobb-Douglas","Linear",700,122084.70,201578.59,-5806.61,12.5881,"Grass Fields",2352.44
-"Phase 3: Oil & Quartz","Pure","Leontief","Gaussian",700,-212744.44,-68834.37,131.56,0.7009,"Rocky Desert",1317.83
-"Phase 3: Oil & Quartz","Pure","Leontief","Exponential",700,345151.85,-117552.40,5793.33,0.6538,"Dune Desert",1400.12
-"Phase 3: Oil & Quartz","Pure","Leontief","Power-Law",700,416680.00,63640.00,-516.33,1.8333,"Dune Desert",3257.22
-"Phase 3: Oil & Quartz","Pure","Leontief","Linear",700,121042.34,193895.16,-4995.93,0.1833,"Grass Fields",2355.98
-"Phase 3: Oil & Quartz","Pure","Linear","Gaussian",700,338020.33,-131704.98,5009.30,53.2653,"Dune Desert",1254.52
-"Phase 3: Oil & Quartz","Pure","Linear","Exponential",700,344909.12,-125889.79,4958.98,34.9331,"Dune Desert",1344.64
-"Phase 3: Oil & Quartz","Pure","Linear","Power-Law",700,90591.27,366869.73,-538.65,47.5917,"Grass Fields",2373.45
-"Phase 3: Oil & Quartz","Pure","Linear","Linear",700,323690.54,-146158.85,4157.01,15.8567,"Dune Desert",1052.61
-"Phase 4: Late Game","Default","Cobb-Douglas","Gaussian",700,118673.09,41285.03,10857.12,1374343.3607,"Northern Forest",1769.72
-"Phase 4: Late Game","Default","Cobb-Douglas","Exponential",700,95551.31,81112.75,10535.43,261769.3521,"Northern Forest",1959.84
-"Phase 4: Late Game","Default","Cobb-Douglas","Power-Law",700,85389.73,83129.89,10775.15,442730993.9621,"Northern Forest",1930.42
-"Phase 4: Late Game","Default","Cobb-Douglas","Linear",700,238249.04,99548.79,1021.82,0.0167,"Northern Forest",3044.53
-"Phase 4: Late Game","Default","Leontief","Gaussian",700,100424.19,82611.53,10259.81,0.7086,"Northern Forest",1996.99
-"Phase 4: Late Game","Default","Leontief","Exponential",700,90375.10,80718.21,10233.09,0.5747,"Northern Forest",1931.64
-"Phase 4: Late Game","Default","Leontief","Power-Law",700,100523.18,81823.40,10264.51,0.8540,"Northern Forest",1990.68
-"Phase 4: Late Game","Default","Leontief","Linear",700,337468.50,-114141.50,6636.65,0.0477,"Dune Desert",1367.08
-"Phase 4: Late Game","Default","Linear","Gaussian",700,100889.45,82268.39,10262.00,31.3944,"Northern Forest",1996.37
-"Phase 4: Late Game","Default","Linear","Exponential",700,92864.21,83917.04,10483.07,25.6402,"Northern Forest",1971.57
-"Phase 4: Late Game","Default","Linear","Power-Law",700,90716.52,82421.98,10488.76,52.9873,"Northern Forest",1948.30
-"Phase 4: Late Game","Default","Linear","Linear",700,344857.89,-125931.86,4967.73,8.3070,"Dune Desert",1343.97
-"Phase 4: Late Game","Normal","Cobb-Douglas","Gaussian",700,152593.37,62912.13,6955.74,282834.7350,"Northern Forest",2160.25
-"Phase 4: Late Game","Normal","Cobb-Douglas","Exponential",700,97587.98,79939.52,10251.54,62867.3512,"Northern Forest",1959.66
-"Phase 4: Late Game","Normal","Cobb-Douglas","Power-Law",700,85387.44,83106.44,10776.07,108515798.9154,"Northern Forest",1930.20
-"Phase 4: Late Game","Normal","Cobb-Douglas","Linear",700,120089.70,209883.21,-4961.07,0.0050,"Grass Fields",2320.52
-"Phase 4: Late Game","Normal","Leontief","Gaussian",700,100779.13,82356.87,10261.60,0.6646,"Northern Forest",1996.58
-"Phase 4: Late Game","Normal","Leontief","Exponential",700,95677.51,81919.08,10226.33,0.6928,"Northern Forest",1967.49
-"Phase 4: Late Game","Normal","Leontief","Power-Law",700,332784.31,-113759.00,7613.08,0.8767,"Dune Desert",1336.83
-"Phase 4: Late Game","Normal","Leontief","Linear",700,337468.50,-114141.50,6636.65,0.0477,"Dune Desert",1367.08
-"Phase 4: Late Game","Normal","Linear","Gaussian",700,313409.36,-132521.55,4905.79,27.1915,"Dune Desert",1067.33
-"Phase 4: Late Game","Normal","Linear","Exponential",700,313375.32,-132476.64,4906.32,21.8390,"Dune Desert",1067.42
-"Phase 4: Late Game","Normal","Linear","Power-Law",700,90803.71,82180.77,10472.51,44.8554,"Northern Forest",1946.57
-"Phase 4: Late Game","Normal","Linear","Linear",700,345341.87,-125445.44,4877.95,6.4849,"Dune Desert",1350.79
-"Phase 4: Late Game","Pure","Cobb-Douglas","Gaussian",700,152579.14,62915.23,6943.63,221131301.0588,"Northern Forest",2160.17
-"Phase 4: Late Game","Pure","Cobb-Douglas","Exponential",700,97315.38,80234.94,10250.67,48013814.8907,"Northern Forest",1960.87
-"Phase 4: Late Game","Pure","Cobb-Douglas","Power-Law",700,85387.44,83106.44,10776.07,89735175548.1383,"Northern Forest",1930.20
-"Phase 4: Late Game","Pure","Cobb-Douglas","Linear",700,118795.39,207367.86,-5171.54,0.8273,"Grass Fields",2311.11
-"Phase 4: Late Game","Pure","Leontief","Gaussian",700,98544.74,83690.20,10244.76,0.8486,"Northern Forest",1996.98
-"Phase 4: Late Game","Pure","Leontief","Exponential",700,100523.18,81823.40,10264.51,0.8540,"Northern Forest",1990.68
-"Phase 4: Late Game","Pure","Leontief","Power-Law",700,100523.18,81823.40,10264.51,0.8540,"Northern Forest",1990.68
-"Phase 4: Late Game","Pure","Leontief","Linear",700,337468.50,-114141.50,6636.65,0.0477,"Dune Desert",1367.08
-"Phase 4: Late Game","Pure","Linear","Gaussian",700,313374.64,-132476.64,4906.31,54.1080,"Dune Desert",1067.41
-"Phase 4: Late Game","Pure","Linear","Exponential",700,313375.32,-132476.64,4906.32,43.5110,"Dune Desert",1067.42
-"Phase 4: Late Game","Pure","Linear","Power-Law",700,90803.71,82180.77,10472.51,89.4589,"Northern Forest",1946.57
-"Phase 4: Late Game","Pure","Linear","Linear",700,344638.62,-125891.30,4802.27,12.7501,"Dune Desert",1342.52
-"Phase 5: Quantum","Default","Cobb-Douglas","Gaussian",700,118885.19,41783.44,10363.80,241813.7940,"Northern Forest",1774.84
-"Phase 5: Quantum","Default","Cobb-Douglas","Exponential",700,90668.23,80752.69,10304.25,50802.4156,"Northern Forest",1933.32
-"Phase 5: Quantum","Default","Cobb-Douglas","Power-Law",700,85398.53,83128.34,10774.85,61850388.6130,"Northern Forest",1930.45
-"Phase 5: Quantum","Default","Cobb-Douglas","Linear",700,238245.03,99550.97,1022.29,0.0049,"Northern Forest",3044.51
-"Phase 5: Quantum","Default","Leontief","Gaussian",700,-70559.45,62506.17,22206.09,0.6390,"Northern Forest",1680.38
-"Phase 5: Quantum","Default","Leontief","Exponential",700,-69995.68,63986.95,22405.13,0.5420,"Northern Forest",1691.49
-"Phase 5: Quantum","Default","Leontief","Power-Law",700,-51165.31,61070.28,23313.51,0.6583,"Northern Forest",1595.00
-"Phase 5: Quantum","Default","Leontief","Linear",700,135848.25,248796.75,-15783.91,0.0516,"Grass Fields",2460.06
-"Phase 5: Quantum","Default","Linear","Gaussian",700,98605.35,83778.13,10244.62,26.5998,"Northern Forest",1998.05
-"Phase 5: Quantum","Default","Linear","Exponential",700,92180.18,84002.78,10508.93,22.1194,"Northern Forest",1969.12
-"Phase 5: Quantum","Default","Linear","Power-Law",700,90671.32,82428.96,10487.85,44.8810,"Northern Forest",1948.15
-"Phase 5: Quantum","Default","Linear","Linear",700,92155.64,84005.73,10509.68,7.0406,"Northern Forest",1969.03
-"Phase 5: Quantum","Normal","Cobb-Douglas","Gaussian",700,152413.84,63064.04,6752.57,73155.1318,"Northern Forest",2160.06
-"Phase 5: Quantum","Normal","Cobb-Douglas","Exponential",700,97583.37,81331.76,10251.79,14659.5621,"Northern Forest",1971.73
-"Phase 5: Quantum","Normal","Cobb-Douglas","Power-Law",700,85389.21,83129.30,10775.20,18559927.7394,"Northern Forest",1930.42
-"Phase 5: Quantum","Normal","Cobb-Douglas","Linear",700,120097.52,209884.73,-4961.03,0.0024,"Grass Fields",2320.60
-"Phase 5: Quantum","Normal","Leontief","Gaussian",700,96237.94,81167.69,10235.79,0.6106,"Northern Forest",1963.67
-"Phase 5: Quantum","Normal","Leontief","Exponential",700,146578.11,67880.33,3029.09,0.4667,"Northern Forest",2154.33
-"Phase 5: Quantum","Normal","Leontief","Power-Law",700,98060.72,84138.34,10237.94,0.7365,"Northern Forest",1998.50
-"Phase 5: Quantum","Normal","Leontief","Linear",700,135848.25,248796.75,-15783.91,0.0516,"Grass Fields",2460.06
-"Phase 5: Quantum","Normal","Linear","Gaussian",700,313409.36,-132521.55,4905.79,21.6952,"Dune Desert",1067.33
-"Phase 5: Quantum","Normal","Linear","Exponential",700,97131.48,83297.92,10237.79,17.6903,"Northern Forest",1986.62
-"Phase 5: Quantum","Normal","Linear","Power-Law",700,90776.50,82362.00,10486.33,37.4064,"Northern Forest",1948.05
-"Phase 5: Quantum","Normal","Linear","Linear",700,345264.49,-125532.88,4893.19,5.1938,"Dune Desert",1349.64
-"Phase 5: Quantum","Pure","Cobb-Douglas","Gaussian",700,152413.84,63064.04,6752.57,47732992.1837,"Northern Forest",2160.06
-"Phase 5: Quantum","Pure","Cobb-Douglas","Exponential",700,97627.12,80263.31,10251.70,9250604.5210,"Northern Forest",1962.67
-"Phase 5: Quantum","Pure","Cobb-Douglas","Power-Law",700,85389.21,83129.30,10775.20,12817377296.5577,"Northern Forest",1930.42
-"Phase 5: Quantum","Pure","Cobb-Douglas","Linear",700,119866.19,209852.12,-4962.39,0.3234,"Grass Fields",2318.35
-"Phase 5: Quantum","Pure","Leontief","Gaussian",700,102309.91,82315.44,10442.39,1.0321,"Northern Forest",2003.99
-"Phase 5: Quantum","Pure","Leontief","Exponential",700,-40375.84,70273.84,21605.05,0.8252,"Northern Forest",1652.81
-"Phase 5: Quantum","Pure","Leontief","Power-Law",700,332848.73,-113753.41,7660.25,1.0650,"Dune Desert",1337.32
-"Phase 5: Quantum","Pure","Leontief","Linear",700,135848.25,248796.75,-15783.91,0.0516,"Grass Fields",2460.06
-"Phase 5: Quantum","Pure","Linear","Gaussian",700,313374.64,-132476.64,4906.31,43.1612,"Dune Desert",1067.41
-"Phase 5: Quantum","Pure","Linear","Exponential",700,97133.85,83300.29,10237.78,35.1563,"Northern Forest",1986.65
-"Phase 5: Quantum","Pure","Linear","Power-Law",700,90776.50,82362.00,10486.33,74.6027,"Northern Forest",1948.05
-"Phase 5: Quantum","Pure","Linear","Linear",700,344638.62,-125891.30,4802.27,10.2060,"Dune Desert",1342.52
-"Collectible Hunting","Default","Cobb-Douglas","Gaussian",700,150713.08,79961.52,11810.49,186822909.4738,"Northern Forest",2271.59
-"Collectible Hunting","Default","Cobb-Douglas","Exponential",700,142560.69,22235.35,13738.06,49315984.2193,"Northern Forest",1814.40
-"Collectible Hunting","Default","Cobb-Douglas","Power-Law",700,80075.03,-28547.76,11989.73,4733436436.7305,"Northern Forest",1009.38
-"Collectible Hunting","Default","Cobb-Douglas","Linear",700,105553.02,-168782.59,6990.49,22039.4512,"Northern Forest",1317.12
-"Collectible Hunting","Default","Leontief","Gaussian",700,149207.50,81962.69,13561.11,4.6831,"Northern Forest",2276.71
-"Collectible Hunting","Default","Leontief","Exponential",700,94724.29,80987.96,10651.67,3.6232,"Northern Forest",1954.73
-"Collectible Hunting","Default","Leontief","Power-Law",700,100079.59,82263.69,10261.21,8.0972,"Northern Forest",1992.25
-"Collectible Hunting","Default","Leontief","Linear",700,138856.95,61561.42,19070.58,0.7813,"Northern Forest",2055.53
-"Collectible Hunting","Default","Linear","Gaussian",700,70380.47,-149955.91,7104.69,96.8636,"Northern Forest",924.56
-"Collectible Hunting","Default","Linear","Exponential",700,149205.14,81964.71,13562.28,65.1141,"Northern Forest",2276.71
-"Collectible Hunting","Default","Linear","Power-Law",700,60936.99,-37968.74,17405.91,135.5068,"Northern Forest",801.28
-"Collectible Hunting","Default","Linear","Linear",700,87715.57,-177563.57,5119.46,25.9596,"Northern Forest",1239.41
-"Collectible Hunting","Normal","Cobb-Douglas","Gaussian",700,150713.08,79961.52,11810.49,186822909.4738,"Northern Forest",2271.59
-"Collectible Hunting","Normal","Cobb-Douglas","Exponential",700,142560.69,22235.35,13738.06,49315984.2193,"Northern Forest",1814.40
-"Collectible Hunting","Normal","Cobb-Douglas","Power-Law",700,80075.03,-28547.76,11989.73,4733436436.7305,"Northern Forest",1009.38
-"Collectible Hunting","Normal","Cobb-Douglas","Linear",700,105553.02,-168782.59,6990.49,22039.4512,"Northern Forest",1317.12
-"Collectible Hunting","Normal","Leontief","Gaussian",700,149207.50,81962.69,13561.11,4.6831,"Northern Forest",2276.71
-"Collectible Hunting","Normal","Leontief","Exponential",700,94724.29,80987.96,10651.67,3.6232,"Northern Forest",1954.73
-"Collectible Hunting","Normal","Leontief","Power-Law",700,100079.59,82263.69,10261.21,8.0972,"Northern Forest",1992.25
-"Collectible Hunting","Normal","Leontief","Linear",700,138856.95,61561.42,19070.58,0.7813,"Northern Forest",2055.53
-"Collectible Hunting","Normal","Linear","Gaussian",700,70380.47,-149955.91,7104.69,96.8636,"Northern Forest",924.56
-"Collectible Hunting","Normal","Linear","Exponential",700,149205.14,81964.71,13562.28,65.1141,"Northern Forest",2276.71
-"Collectible Hunting","Normal","Linear","Power-Law",700,60936.99,-37968.74,17405.91,135.5068,"Northern Forest",801.28
-"Collectible Hunting","Normal","Linear","Linear",700,87715.57,-177563.57,5119.46,25.9596,"Northern Forest",1239.41
-"Collectible Hunting","Pure","Cobb-Douglas","Gaussian",700,150713.08,79961.52,11810.49,11804691079.8603,"Northern Forest",2271.59
-"Collectible Hunting","Pure","Cobb-Douglas","Exponential",700,142560.69,22235.35,13738.06,3108585761.4421,"Northern Forest",1814.40
-"Collectible Hunting","Pure","Cobb-Douglas","Power-Law",700,80075.03,-28547.76,11989.73,300718264703.2945,"Northern Forest",1009.38
-"Collectible Hunting","Pure","Cobb-Douglas","Linear",700,105553.02,-168782.59,6990.49,1305076.1500,"Northern Forest",1317.12
-"Collectible Hunting","Pure","Leontief","Gaussian",700,149207.50,81962.69,13561.11,9.3358,"Northern Forest",2276.71
-"Collectible Hunting","Pure","Leontief","Exponential",700,94724.29,80987.96,10651.67,7.2160,"Northern Forest",1954.73
-"Collectible Hunting","Pure","Leontief","Power-Law",700,100079.59,82263.69,10261.21,16.1632,"Northern Forest",1992.25
-"Collectible Hunting","Pure","Leontief","Linear",700,131406.82,64268.57,17426.28,1.5316,"Northern Forest",2026.49
-"Collectible Hunting","Pure","Linear","Gaussian",700,70380.47,-149955.91,7104.69,193.7271,"Northern Forest",924.56
-"Collectible Hunting","Pure","Linear","Exponential",700,149205.14,81964.71,13562.28,130.2282,"Northern Forest",2276.71
-"Collectible Hunting","Pure","Linear","Power-Law",700,60936.99,-37968.74,17405.91,271.0136,"Northern Forest",801.28
-"Collectible Hunting","Pure","Linear","Linear",700,87715.57,-177563.57,5119.46,51.9192,"Northern Forest",1239.41
+"Phase 1: Early Game","Default","Cobb-Douglas","Gaussian",700,302172.27,-171371.33,4271.39,3.4660,"Dune Desert",731.95
+"Phase 1: Early Game","Default","Cobb-Douglas","Exponential",700,302242.28,-171577.94,4251.41,2.2987,"Dune Desert",731.46
+"Phase 1: Early Game","Default","Cobb-Douglas","Power-Law",700,293211.45,-164349.49,1592.55,4.8321,"Dune Desert",701.10
+"Phase 1: Early Game","Default","Cobb-Douglas","Linear",700,-83298.74,256380.76,-4258.28,0.4683,"Grass Fields",313.25
+"Phase 1: Early Game","Default","Cobb-Douglas","Logistic-Step",700,303881.05,-165575.96,4067.08,2.9013,"Dune Desert",778.09
+"Phase 1: Early Game","Default","Leontief","Gaussian",700,-109997.99,239997.43,-3797.96,0.0016,"Grass Fields",0.03
+"Phase 1: Early Game","Default","Leontief","Exponential",700,-221272.75,-295209.00,1204.75,0.0014,"Rocky Desert",975.57
+"Phase 1: Early Game","Default","Leontief","Power-Law",700,-240481.44,-295120.07,-1468.50,0.0014,"Rocky Desert",1033.76
+"Phase 1: Early Game","Default","Leontief","Linear",700,-109996.07,239997.94,-3797.68,0.0016,"Grass Fields",0.04
+"Phase 1: Early Game","Default","Leontief","Logistic-Step",700,-221272.75,-295209.00,1204.75,0.0014,"Rocky Desert",975.57
+"Phase 1: Early Game","Default","Linear","Gaussian",700,302224.25,-171536.75,4256.33,28.2652,"Dune Desert",731.52
+"Phase 1: Early Game","Default","Linear","Exponential",700,293212.78,-164479.22,1591.44,17.6645,"Dune Desert",700.27
+"Phase 1: Early Game","Default","Linear","Power-Law",700,293212.19,-164347.96,1592.51,40.5550,"Dune Desert",701.12
+"Phase 1: Early Game","Default","Linear","Linear",700,302907.78,-167310.31,4147.81,5.4473,"Dune Desert",760.25
+"Phase 1: Early Game","Default","Linear","Logistic-Step",700,303977.50,-168295.37,4126.28,27.8853,"Dune Desert",763.70
+"Phase 1: Early Game","Normal","Cobb-Douglas","Gaussian",700,-107348.98,240008.21,-3352.27,3.9215,"Grass Fields",26.51
+"Phase 1: Early Game","Normal","Cobb-Douglas","Exponential",700,-102006.71,245148.58,-3995.47,2.3155,"Grass Fields",95.08
+"Phase 1: Early Game","Normal","Cobb-Douglas","Power-Law",700,-128682.43,271297.07,-4765.28,3.2898,"Grass Fields",364.49
+"Phase 1: Early Game","Normal","Cobb-Douglas","Linear",700,-86934.27,255247.29,-4203.90,0.6832,"Grass Fields",276.50
+"Phase 1: Early Game","Normal","Cobb-Douglas","Logistic-Step",700,-86732.60,235306.79,-2707.25,2.7124,"Grass Fields",237.36
+"Phase 1: Early Game","Normal","Leontief","Gaussian",700,-110002.76,240004.39,-3799.48,0.0016,"Grass Fields",0.05
+"Phase 1: Early Game","Normal","Leontief","Exponential",700,-240489.82,-295112.33,-1468.50,0.0014,"Rocky Desert",1033.72
+"Phase 1: Early Game","Normal","Leontief","Power-Law",700,-240481.44,-295120.07,-1468.50,0.0014,"Rocky Desert",1033.76
+"Phase 1: Early Game","Normal","Leontief","Linear",700,-109996.07,239997.94,-3797.68,0.0016,"Grass Fields",0.04
+"Phase 1: Early Game","Normal","Leontief","Logistic-Step",700,-240481.44,-295120.07,-1468.50,0.0014,"Rocky Desert",1033.76
+"Phase 1: Early Game","Normal","Linear","Gaussian",700,-102007.24,245148.52,-3995.51,30.9133,"Grass Fields",95.07
+"Phase 1: Early Game","Normal","Linear","Exponential",700,-102008.77,245147.42,-3995.55,16.2451,"Grass Fields",95.06
+"Phase 1: Early Game","Normal","Linear","Power-Law",700,293211.45,-164349.49,1592.55,24.4925,"Dune Desert",701.10
+"Phase 1: Early Game","Normal","Linear","Linear",700,-83895.40,248514.60,-4101.89,6.1177,"Grass Fields",274.58
+"Phase 1: Early Game","Normal","Linear","Logistic-Step",700,-89137.19,248234.81,-3810.93,23.7811,"Grass Fields",224.29
+"Phase 1: Early Game","Pure","Cobb-Douglas","Gaussian",700,-107353.30,240010.13,-3353.30,10.5026,"Grass Fields",26.47
+"Phase 1: Early Game","Pure","Cobb-Douglas","Exponential",700,-104926.60,246007.95,-4780.78,5.1702,"Grass Fields",78.64
+"Phase 1: Early Game","Pure","Cobb-Douglas","Power-Law",700,-128681.53,271298.60,-4765.24,9.3484,"Grass Fields",364.50
+"Phase 1: Early Game","Pure","Cobb-Douglas","Linear",700,-86925.67,255249.80,-4203.80,1.5919,"Grass Fields",276.58
+"Phase 1: Early Game","Pure","Cobb-Douglas","Logistic-Step",700,303885.61,-165588.67,4067.77,6.4485,"Dune Desert",778.06
+"Phase 1: Early Game","Pure","Leontief","Gaussian",700,-109995.76,240003.21,-3798.17,0.0015,"Grass Fields",0.05
+"Phase 1: Early Game","Pure","Leontief","Exponential",700,-240481.44,-295120.07,-1468.50,0.0014,"Rocky Desert",1033.76
+"Phase 1: Early Game","Pure","Leontief","Power-Law",700,-240481.44,-295120.07,-1468.50,0.0014,"Rocky Desert",1033.76
+"Phase 1: Early Game","Pure","Leontief","Linear",700,-109996.07,239997.94,-3797.68,0.0016,"Grass Fields",0.04
+"Phase 1: Early Game","Pure","Leontief","Logistic-Step",700,-240481.44,-295120.07,-1468.50,0.0014,"Rocky Desert",1033.76
+"Phase 1: Early Game","Pure","Linear","Gaussian",700,-102006.13,245155.88,-3996.05,97.1998,"Grass Fields",95.12
+"Phase 1: Early Game","Pure","Linear","Exponential",700,-102006.71,245148.58,-3995.47,41.7328,"Grass Fields",95.08
+"Phase 1: Early Game","Pure","Linear","Power-Law",700,-126854.23,272987.64,-4716.29,70.6925,"Grass Fields",370.44
+"Phase 1: Early Game","Pure","Linear","Linear",700,-83618.65,248734.03,-4118.65,17.6574,"Grass Fields",277.90
+"Phase 1: Early Game","Pure","Linear","Logistic-Step",700,-89137.91,248235.81,-3810.84,64.7969,"Grass Fields",224.29
+"Phase 2: Steel & Coal","Default","Cobb-Douglas","Gaussian",700,322553.39,-178518.93,4143.40,1.8514,"Dune Desert",883.52
+"Phase 2: Steel & Coal","Default","Cobb-Douglas","Exponential",700,320847.76,-174140.26,4128.23,1.2917,"Dune Desert",884.44
+"Phase 2: Steel & Coal","Default","Cobb-Douglas","Power-Law",700,302245.97,-171574.25,4250.71,2.0993,"Dune Desert",731.51
+"Phase 2: Steel & Coal","Default","Cobb-Douglas","Linear",700,337889.68,-154398.32,4157.54,0.3671,"Dune Desert",1125.79
+"Phase 2: Steel & Coal","Default","Cobb-Douglas","Logistic-Step",700,311896.38,-157643.62,3940.97,1.5053,"Dune Desert",889.40
+"Phase 2: Steel & Coal","Default","Leontief","Gaussian",700,-221272.75,-295209.00,1204.75,0.0013,"Rocky Desert",975.57
+"Phase 2: Steel & Coal","Default","Leontief","Exponential",700,-222694.81,-294733.19,1185.48,0.0013,"Rocky Desert",974.14
+"Phase 2: Steel & Coal","Default","Leontief","Power-Law",700,-240481.44,-295120.07,-1468.50,0.0013,"Rocky Desert",1033.76
+"Phase 2: Steel & Coal","Default","Leontief","Linear",700,-120244.70,300143.14,-3862.68,0.0008,"Grass Fields",610.09
+"Phase 2: Steel & Coal","Default","Leontief","Logistic-Step",700,-240481.44,-295120.07,-1468.50,0.0013,"Rocky Desert",1033.76
+"Phase 2: Steel & Coal","Default","Linear","Gaussian",700,308277.67,-154493.80,3634.20,45.2679,"Dune Desert",879.93
+"Phase 2: Steel & Coal","Default","Linear","Exponential",700,306105.63,-151509.63,3695.12,27.4550,"Dune Desert",882.67
+"Phase 2: Steel & Coal","Default","Linear","Power-Law",700,306133.89,-151550.64,3693.97,58.1943,"Dune Desert",882.61
+"Phase 2: Steel & Coal","Default","Linear","Linear",700,308519.50,-154824.50,3631.36,8.7653,"Dune Desert",879.73
+"Phase 2: Steel & Coal","Default","Linear","Logistic-Step",700,314291.53,-161567.41,3968.17,45.7473,"Dune Desert",886.85
+"Phase 2: Steel & Coal","Normal","Cobb-Douglas","Gaussian",700,322636.26,-178758.04,4140.95,1.5381,"Dune Desert",883.45
+"Phase 2: Steel & Coal","Normal","Cobb-Douglas","Exponential",700,322083.75,-177199.88,4145.99,1.0494,"Dune Desert",883.95
+"Phase 2: Steel & Coal","Normal","Cobb-Douglas","Power-Law",700,-126811.69,273015.33,-4715.34,1.3451,"Grass Fields",370.49
+"Phase 2: Steel & Coal","Normal","Cobb-Douglas","Linear",700,327245.11,-172378.61,4287.39,0.3319,"Dune Desert",950.11
+"Phase 2: Steel & Coal","Normal","Cobb-Douglas","Logistic-Step",700,304659.96,-157573.53,3392.11,1.2984,"Dune Desert",832.43
+"Phase 2: Steel & Coal","Normal","Leontief","Gaussian",700,-221272.75,-295209.00,1204.75,0.0013,"Rocky Desert",975.57
+"Phase 2: Steel & Coal","Normal","Leontief","Exponential",700,-240481.44,-295120.07,-1468.50,0.0013,"Rocky Desert",1033.76
+"Phase 2: Steel & Coal","Normal","Leontief","Power-Law",700,-240481.44,-295120.07,-1468.50,0.0013,"Rocky Desert",1033.76
+"Phase 2: Steel & Coal","Normal","Leontief","Linear",700,-120244.70,300143.14,-3862.68,0.0008,"Grass Fields",610.09
+"Phase 2: Steel & Coal","Normal","Leontief","Logistic-Step",700,-240481.44,-295120.07,-1468.50,0.0013,"Rocky Desert",1033.76
+"Phase 2: Steel & Coal","Normal","Linear","Gaussian",700,-82978.55,241260.30,-3460.34,32.9834,"Grass Fields",270.51
+"Phase 2: Steel & Coal","Normal","Linear","Exponential",700,308215.13,-154407.94,3635.09,19.3572,"Dune Desert",879.99
+"Phase 2: Steel & Coal","Normal","Linear","Power-Law",700,306133.89,-151550.64,3693.97,34.7359,"Dune Desert",882.61
+"Phase 2: Steel & Coal","Normal","Linear","Linear",700,-81034.02,250617.39,-4290.48,7.1897,"Grass Fields",308.51
+"Phase 2: Steel & Coal","Normal","Linear","Logistic-Step",700,308445.94,-154143.01,3647.18,34.4085,"Dune Desert",883.45
+"Phase 2: Steel & Coal","Pure","Cobb-Douglas","Gaussian",700,322699.59,-178821.37,4140.40,2.9945,"Dune Desert",883.82
+"Phase 2: Steel & Coal","Pure","Cobb-Douglas","Exponential",700,322582.22,-178604.72,4142.54,1.8538,"Dune Desert",883.49
+"Phase 2: Steel & Coal","Pure","Cobb-Douglas","Power-Law",700,-126836.62,272992.63,-4716.12,2.9294,"Grass Fields",370.40
+"Phase 2: Steel & Coal","Pure","Cobb-Douglas","Linear",700,327777.05,-172384.80,4301.71,0.5900,"Dune Desert",954.97
+"Phase 2: Steel & Coal","Pure","Cobb-Douglas","Logistic-Step",700,305437.94,-157347.00,3420.89,2.5525,"Dune Desert",839.91
+"Phase 2: Steel & Coal","Pure","Leontief","Gaussian",700,-226696.04,-293285.96,1133.15,0.0013,"Rocky Desert",970.31
+"Phase 2: Steel & Coal","Pure","Leontief","Exponential",700,-240481.44,-295120.07,-1468.50,0.0013,"Rocky Desert",1033.76
+"Phase 2: Steel & Coal","Pure","Leontief","Power-Law",700,-240481.44,-295120.07,-1468.50,0.0013,"Rocky Desert",1033.76
+"Phase 2: Steel & Coal","Pure","Leontief","Linear",700,-120244.70,300143.14,-3862.68,0.0008,"Grass Fields",610.09
+"Phase 2: Steel & Coal","Pure","Leontief","Logistic-Step",700,-240481.44,-295120.07,-1468.50,0.0013,"Rocky Desert",1033.76
+"Phase 2: Steel & Coal","Pure","Linear","Gaussian",700,-83355.50,246423.12,-3941.19,102.1370,"Grass Fields",274.08
+"Phase 2: Steel & Coal","Pure","Linear","Exponential",700,308209.46,-154389.21,3635.47,49.3719,"Dune Desert",880.06
+"Phase 2: Steel & Coal","Pure","Linear","Power-Law",700,-126684.71,273144.54,-4710.81,84.7379,"Grass Fields",371.07
+"Phase 2: Steel & Coal","Pure","Linear","Linear",700,-81033.34,250627.16,-4290.86,20.7823,"Grass Fields",308.55
+"Phase 2: Steel & Coal","Pure","Linear","Logistic-Step",700,308134.63,-153737.95,3651.63,104.0776,"Dune Desert",883.61
+"Phase 3: Oil & Quartz","Default","Cobb-Douglas","Gaussian",700,304824.19,-149356.25,3814.97,1.1918,"Dune Desert",887.68
+"Phase 3: Oil & Quartz","Default","Cobb-Douglas","Exponential",700,308391.97,-154652.22,3632.69,0.9920,"Dune Desert",879.82
+"Phase 3: Oil & Quartz","Default","Cobb-Douglas","Power-Law",700,308553.57,-154870.67,3631.05,1.9313,"Dune Desert",879.71
+"Phase 3: Oil & Quartz","Default","Cobb-Douglas","Linear",700,352109.29,-141484.29,4798.24,0.2256,"Dune Desert",1313.88
+"Phase 3: Oil & Quartz","Default","Cobb-Douglas","Logistic-Step",700,320719.07,-140527.57,4371.80,0.9595,"Dune Desert",1064.99
+"Phase 3: Oil & Quartz","Default","Leontief","Gaussian",700,-131113.26,-122305.26,-2489.19,0.1159,"Rocky Desert",1038.36
+"Phase 3: Oil & Quartz","Default","Leontief","Exponential",700,294853.62,-139779.09,3800.36,0.1844,"Dune Desert",891.06
+"Phase 3: Oil & Quartz","Default","Leontief","Power-Law",700,396610.38,69853.38,-399.29,0.3021,"Dune Desert",3206.94
+"Phase 3: Oil & Quartz","Default","Leontief","Linear",700,-221272.75,-295209.00,1204.75,0.0007,"Rocky Desert",975.57
+"Phase 3: Oil & Quartz","Default","Leontief","Logistic-Step",700,-11651.64,-15530.95,24806.33,0.1184,"Northern Forest",753.75
+"Phase 3: Oil & Quartz","Default","Linear","Gaussian",700,304815.77,-149358.61,3814.86,48.8565,"Dune Desert",887.61
+"Phase 3: Oil & Quartz","Default","Linear","Exponential",700,308229.45,-154425.70,3634.94,29.8767,"Dune Desert",879.99
+"Phase 3: Oil & Quartz","Default","Linear","Power-Law",700,306092.89,-151493.20,3695.58,61.4792,"Dune Desert",882.68
+"Phase 3: Oil & Quartz","Default","Linear","Linear",700,308519.50,-154824.50,3631.36,9.5139,"Dune Desert",879.73
+"Phase 3: Oil & Quartz","Default","Linear","Logistic-Step",700,314291.53,-161567.41,3968.17,50.3531,"Dune Desert",886.85
+"Phase 3: Oil & Quartz","Normal","Cobb-Douglas","Gaussian",700,308387.85,-154646.35,3632.75,1.0069,"Dune Desert",879.83
+"Phase 3: Oil & Quartz","Normal","Cobb-Douglas","Exponential",700,322181.89,-177461.89,4145.72,0.8088,"Dune Desert",883.89
+"Phase 3: Oil & Quartz","Normal","Cobb-Douglas","Power-Law",700,-126822.28,273005.47,-4715.68,1.2893,"Grass Fields",370.45
+"Phase 3: Oil & Quartz","Normal","Cobb-Douglas","Linear",700,352103.61,-141475.36,4798.46,0.1908,"Dune Desert",1313.88
+"Phase 3: Oil & Quartz","Normal","Cobb-Douglas","Logistic-Step",700,321644.52,-141845.95,4291.53,0.8335,"Dune Desert",1063.52
+"Phase 3: Oil & Quartz","Normal","Leontief","Gaussian",700,296791.08,-96416.36,6248.83,0.1496,"Dune Desert",1269.90
+"Phase 3: Oil & Quartz","Normal","Leontief","Exponential",700,323066.01,-120059.62,7991.26,0.1636,"Dune Desert",1224.31
+"Phase 3: Oil & Quartz","Normal","Leontief","Power-Law",700,419988.08,39621.51,-424.15,0.3987,"Dune Desert",3077.44
+"Phase 3: Oil & Quartz","Normal","Leontief","Linear",700,-221272.75,-295209.00,1204.75,0.0007,"Rocky Desert",975.57
+"Phase 3: Oil & Quartz","Normal","Leontief","Logistic-Step",700,292264.67,-129260.58,3816.88,0.1213,"Dune Desert",961.79
+"Phase 3: Oil & Quartz","Normal","Linear","Gaussian",700,314621.46,-159851.58,3759.05,35.1505,"Dune Desert",899.07
+"Phase 3: Oil & Quartz","Normal","Linear","Exponential",700,308249.36,-154454.42,3634.61,20.9836,"Dune Desert",879.96
+"Phase 3: Oil & Quartz","Normal","Linear","Power-Law",700,306087.61,-151487.92,3695.72,36.3064,"Dune Desert",882.68
+"Phase 3: Oil & Quartz","Normal","Linear","Linear",700,308716.97,-155096.91,3629.65,6.8222,"Dune Desert",879.57
+"Phase 3: Oil & Quartz","Normal","Linear","Logistic-Step",700,308123.45,-153724.01,3651.79,37.8133,"Dune Desert",883.62
+"Phase 3: Oil & Quartz","Pure","Cobb-Douglas","Gaussian",700,322181.89,-177461.89,4145.72,1.8762,"Dune Desert",883.89
+"Phase 3: Oil & Quartz","Pure","Cobb-Douglas","Exponential",700,322025.05,-177041.12,4146.02,1.4247,"Dune Desert",883.99
+"Phase 3: Oil & Quartz","Pure","Cobb-Douglas","Power-Law",700,-126823.11,273004.46,-4715.72,2.9485,"Grass Fields",370.45
+"Phase 3: Oil & Quartz","Pure","Cobb-Douglas","Linear",700,352037.37,-141322.87,4803.23,0.3036,"Dune Desert",1314.11
+"Phase 3: Oil & Quartz","Pure","Cobb-Douglas","Logistic-Step",700,321557.81,-141904.06,4293.67,1.6215,"Dune Desert",1062.48
+"Phase 3: Oil & Quartz","Pure","Leontief","Gaussian",700,316190.37,-104581.82,8448.69,0.2009,"Dune Desert",1300.69
+"Phase 3: Oil & Quartz","Pure","Leontief","Exponential",700,383909.87,88385.13,1450.51,0.1237,"Dune Desert",3312.76
+"Phase 3: Oil & Quartz","Pure","Leontief","Power-Law",700,419988.26,39610.77,-424.19,0.3987,"Dune Desert",3077.36
+"Phase 3: Oil & Quartz","Pure","Leontief","Linear",700,-221272.75,-295209.00,1204.75,0.0007,"Rocky Desert",975.57
+"Phase 3: Oil & Quartz","Pure","Leontief","Logistic-Step",700,292265.78,-129276.91,3816.95,0.1983,"Dune Desert",961.66
+"Phase 3: Oil & Quartz","Pure","Linear","Gaussian",700,318528.82,-167559.24,4003.31,98.8258,"Dune Desert",892.64
+"Phase 3: Oil & Quartz","Pure","Linear","Exponential",700,308237.57,-154438.94,3634.76,52.7711,"Dune Desert",879.97
+"Phase 3: Oil & Quartz","Pure","Linear","Power-Law",700,-126442.88,273385.22,-4702.08,79.7017,"Grass Fields",372.15
+"Phase 3: Oil & Quartz","Pure","Linear","Linear",700,302997.50,-166475.94,4098.10,19.4271,"Dune Desert",765.70
+"Phase 3: Oil & Quartz","Pure","Linear","Logistic-Step",700,308142.71,-153750.46,3651.44,113.7466,"Dune Desert",883.60
+"Phase 4: Late Game","Default","Cobb-Douglas","Gaussian",700,94941.25,-602.04,15668.90,0.8754,"Northern Forest",1304.06
+"Phase 4: Late Game","Default","Cobb-Douglas","Exponential",700,383921.69,88367.69,1450.43,0.7753,"Dune Desert",3312.65
+"Phase 4: Late Game","Default","Cobb-Douglas","Power-Law",700,383917.28,88384.12,1450.54,2.3867,"Dune Desert",3312.78
+"Phase 4: Late Game","Default","Cobb-Douglas","Linear",700,376474.94,-163673.78,5090.48,0.1485,"Dune Desert",1441.23
+"Phase 4: Late Game","Default","Cobb-Douglas","Logistic-Step",700,310150.31,62609.19,-1271.72,0.6584,"Dune Desert",2814.90
+"Phase 4: Late Game","Default","Leontief","Gaussian",700,-14277.82,18209.26,25788.71,0.1773,"Northern Forest",1091.47
+"Phase 4: Late Game","Default","Leontief","Exponential",700,-20559.97,75291.25,33422.11,0.2184,"Northern Forest",1665.65
+"Phase 4: Late Game","Default","Leontief","Power-Law",700,305142.38,-146216.00,3919.68,0.2098,"Dune Desert",911.70
+"Phase 4: Late Game","Default","Leontief","Linear",700,-237449.00,-298271.00,-1468.54,0.0010,"Rocky Desert",1051.65
+"Phase 4: Late Game","Default","Leontief","Logistic-Step",700,-48489.62,-6598.62,24850.88,0.1353,"Northern Forest",964.73
+"Phase 4: Late Game","Default","Linear","Gaussian",700,304819.66,-149361.04,3814.81,58.3002,"Dune Desert",887.62
+"Phase 4: Late Game","Default","Linear","Exponential",700,305145.30,-146244.52,3918.69,37.8047,"Dune Desert",911.52
+"Phase 4: Late Game","Default","Linear","Power-Law",700,83847.31,-29929.41,9162.56,84.0199,"Northern Forest",1031.45
+"Phase 4: Late Game","Default","Linear","Linear",700,311688.51,-157465.51,3941.00,9.7857,"Dune Desert",888.77
+"Phase 4: Late Game","Default","Linear","Logistic-Step",700,305119.00,-148301.00,3849.30,55.6639,"Dune Desert",897.06
+"Phase 4: Late Game","Normal","Cobb-Douglas","Gaussian",700,285646.86,41412.61,-1332.50,0.7406,"Dune Desert",2555.23
+"Phase 4: Late Game","Normal","Cobb-Douglas","Exponential",700,383913.63,88381.44,1450.50,0.7219,"Dune Desert",3312.74
+"Phase 4: Late Game","Normal","Cobb-Douglas","Power-Law",700,383914.33,88380.42,1450.49,2.1371,"Dune Desert",3312.74
+"Phase 4: Late Game","Normal","Cobb-Douglas","Linear",700,374414.15,-170278.63,4937.85,0.1322,"Dune Desert",1401.60
+"Phase 4: Late Game","Normal","Cobb-Douglas","Logistic-Step",700,310150.31,62609.19,-1271.72,0.6263,"Dune Desert",2814.90
+"Phase 4: Late Game","Normal","Leontief","Gaussian",700,-16775.14,14242.67,25392.04,0.1640,"Northern Forest",1055.84
+"Phase 4: Late Game","Normal","Leontief","Exponential",700,-20943.64,75366.52,33344.05,0.2063,"Northern Forest",1666.87
+"Phase 4: Late Game","Normal","Leontief","Power-Law",700,350186.00,59949.53,-411.71,0.2615,"Dune Desert",2915.71
+"Phase 4: Late Game","Normal","Leontief","Linear",700,-237449.00,-298271.00,-1468.54,0.0010,"Rocky Desert",1051.65
+"Phase 4: Late Game","Normal","Leontief","Logistic-Step",700,-48148.25,-6783.25,24890.86,0.1083,"Northern Forest",961.42
+"Phase 4: Late Game","Normal","Linear","Gaussian",700,304815.77,-149373.08,3814.43,46.2877,"Dune Desert",887.51
+"Phase 4: Late Game","Normal","Linear","Exponential",700,305139.69,-146257.46,3918.08,30.2891,"Dune Desert",911.39
+"Phase 4: Late Game","Normal","Linear","Power-Law",700,84110.06,-29135.91,9099.19,75.3145,"Northern Forest",1038.22
+"Phase 4: Late Game","Normal","Linear","Linear",700,309206.43,-156104.05,3544.99,7.1397,"Dune Desert",877.17
+"Phase 4: Late Game","Normal","Linear","Logistic-Step",700,305086.00,-148303.00,3848.84,44.5484,"Dune Desert",896.81
+"Phase 4: Late Game","Pure","Cobb-Douglas","Gaussian",700,94919.75,-2643.03,15389.16,1.6242,"Northern Forest",1290.00
+"Phase 4: Late Game","Pure","Cobb-Douglas","Exponential",700,91420.55,-6344.55,15442.58,1.2668,"Northern Forest",1239.19
+"Phase 4: Late Game","Pure","Cobb-Douglas","Power-Law",700,77163.15,-9561.94,13837.04,3.7537,"Northern Forest",1114.65
+"Phase 4: Late Game","Pure","Cobb-Douglas","Linear",700,140986.96,233200.96,-7613.13,0.1962,"Grass Fields",2510.79
+"Phase 4: Late Game","Pure","Cobb-Douglas","Logistic-Step",700,310150.31,62609.19,-1271.72,1.2640,"Dune Desert",2814.90
+"Phase 4: Late Game","Pure","Leontief","Gaussian",700,-20010.16,75016.71,33047.90,0.2523,"Northern Forest",1662.26
+"Phase 4: Late Game","Pure","Leontief","Exponential",700,322239.39,71064.61,-1384.92,0.1579,"Dune Desert",2928.49
+"Phase 4: Late Game","Pure","Leontief","Power-Law",700,378912.72,68901.22,-451.58,0.5337,"Dune Desert",3115.81
+"Phase 4: Late Game","Pure","Leontief","Linear",700,-237449.00,-298271.00,-1468.54,0.0010,"Rocky Desert",1051.65
+"Phase 4: Late Game","Pure","Leontief","Logistic-Step",700,-48148.25,-6783.25,24890.86,0.1803,"Northern Forest",961.42
+"Phase 4: Late Game","Pure","Linear","Gaussian",700,304814.64,-149374.42,3814.38,150.8437,"Dune Desert",887.49
+"Phase 4: Late Game","Pure","Linear","Exponential",700,305144.61,-146254.64,3918.30,93.9332,"Dune Desert",911.44
+"Phase 4: Late Game","Pure","Linear","Power-Law",700,84110.06,-29135.91,9099.19,269.0478,"Northern Forest",1038.22
+"Phase 4: Late Game","Pure","Linear","Linear",700,308360.17,-154603.92,3633.20,20.0710,"Dune Desert",879.88
+"Phase 4: Late Game","Pure","Linear","Logistic-Step",700,305086.00,-148303.00,3848.84,146.5325,"Dune Desert",896.81
+"Phase 5: Quantum","Default","Cobb-Douglas","Gaussian",700,94943.81,-598.10,15668.76,0.8643,"Northern Forest",1304.11
+"Phase 5: Quantum","Default","Cobb-Douglas","Exponential",700,383921.69,88367.69,1450.43,0.6942,"Dune Desert",3312.65
+"Phase 5: Quantum","Default","Cobb-Douglas","Power-Law",700,383918.82,88381.65,1450.52,2.2625,"Dune Desert",3312.77
+"Phase 5: Quantum","Default","Cobb-Douglas","Linear",700,140986.96,233200.96,-7613.13,0.1291,"Grass Fields",2510.79
+"Phase 5: Quantum","Default","Cobb-Douglas","Logistic-Step",700,104084.39,37116.52,14831.46,0.6455,"Northern Forest",1642.93
+"Phase 5: Quantum","Default","Leontief","Gaussian",700,-21615.54,26135.84,23581.88,0.1888,"Northern Forest",1181.30
+"Phase 5: Quantum","Default","Leontief","Exponential",700,-22753.11,77071.58,32941.54,0.2623,"Northern Forest",1686.14
+"Phase 5: Quantum","Default","Leontief","Power-Law",700,-20948.74,41062.37,25690.06,0.4064,"Northern Forest",1327.26
+"Phase 5: Quantum","Default","Leontief","Linear",700,-237449.00,-298271.00,-1468.54,0.0010,"Rocky Desert",1051.65
+"Phase 5: Quantum","Default","Leontief","Logistic-Step",700,-48148.25,-6783.25,24890.86,0.1353,"Northern Forest",961.42
+"Phase 5: Quantum","Default","Linear","Gaussian",700,304922.69,-148437.69,3842.91,45.9080,"Dune Desert",894.70
+"Phase 5: Quantum","Default","Linear","Exponential",700,305025.47,-147397.25,3876.45,29.4947,"Dune Desert",902.63
+"Phase 5: Quantum","Default","Linear","Power-Law",700,83847.31,-29909.88,9164.54,59.1187,"Northern Forest",1031.56
+"Phase 5: Quantum","Default","Linear","Linear",700,308519.50,-154824.50,3631.36,7.9581,"Dune Desert",879.73
+"Phase 5: Quantum","Default","Linear","Logistic-Step",700,305119.00,-148301.00,3849.30,44.9031,"Dune Desert",897.06
+"Phase 5: Quantum","Normal","Cobb-Douglas","Gaussian",700,285646.86,41412.61,-1332.50,0.7373,"Dune Desert",2555.23
+"Phase 5: Quantum","Normal","Cobb-Douglas","Exponential",700,383916.22,88380.56,1450.50,0.6444,"Dune Desert",3312.75
+"Phase 5: Quantum","Normal","Cobb-Douglas","Power-Law",700,383917.16,88374.93,1450.47,2.0096,"Dune Desert",3312.70
+"Phase 5: Quantum","Normal","Cobb-Douglas","Linear",700,133483.78,228022.00,-9351.08,0.1127,"Grass Fields",2437.78
+"Phase 5: Quantum","Normal","Cobb-Douglas","Logistic-Step",700,310150.31,62609.19,-1271.72,0.5633,"Dune Desert",2814.90
+"Phase 5: Quantum","Normal","Leontief","Gaussian",700,111498.34,36474.47,12276.95,0.2306,"Northern Forest",1686.05
+"Phase 5: Quantum","Normal","Leontief","Exponential",700,-18749.69,15032.31,25010.28,0.2077,"Northern Forest",1066.93
+"Phase 5: Quantum","Normal","Leontief","Power-Law",700,298185.25,-133983.75,4033.49,0.4842,"Dune Desert",957.29
+"Phase 5: Quantum","Normal","Leontief","Linear",700,-237449.00,-298271.00,-1468.54,0.0010,"Rocky Desert",1051.65
+"Phase 5: Quantum","Normal","Leontief","Logistic-Step",700,-47992.38,-6302.62,24880.58,0.1083,"Northern Forest",964.81
+"Phase 5: Quantum","Normal","Linear","Gaussian",700,304815.40,-149376.66,3814.32,35.9128,"Dune Desert",887.48
+"Phase 5: Quantum","Normal","Linear","Exponential",700,305025.20,-147398.32,3876.41,23.2239,"Dune Desert",902.62
+"Phase 5: Quantum","Normal","Linear","Power-Law",700,84110.06,-29135.91,9099.19,51.6122,"Northern Forest",1038.22
+"Phase 5: Quantum","Normal","Linear","Linear",700,306313.76,-151793.76,3687.28,5.6640,"Dune Desert",882.35
+"Phase 5: Quantum","Normal","Linear","Logistic-Step",700,308269.75,-153549.75,3659.33,35.6728,"Dune Desert",885.85
+"Phase 5: Quantum","Pure","Cobb-Douglas","Gaussian",700,94940.11,-2218.11,15456.12,1.6747,"Northern Forest",1293.03
+"Phase 5: Quantum","Pure","Cobb-Douglas","Exponential",700,94845.70,-2805.70,15379.97,1.3106,"Northern Forest",1288.35
+"Phase 5: Quantum","Pure","Cobb-Douglas","Power-Law",700,-18997.36,74664.39,32151.20,4.1350,"Northern Forest",1657.57
+"Phase 5: Quantum","Pure","Cobb-Douglas","Linear",700,118292.41,225482.91,-6732.27,0.1873,"Grass Fields",2287.54
+"Phase 5: Quantum","Pure","Cobb-Douglas","Logistic-Step",700,96784.50,44542.31,15314.18,1.1665,"Northern Forest",1657.37
+"Phase 5: Quantum","Pure","Leontief","Gaussian",700,2372.88,27856.41,24278.88,0.3649,"Northern Forest",1178.80
+"Phase 5: Quantum","Pure","Leontief","Exponential",700,-22684.11,76832.86,32916.58,0.4135,"Northern Forest",1683.68
+"Phase 5: Quantum","Pure","Leontief","Power-Law",700,350186.00,59949.53,-411.71,0.6264,"Dune Desert",2915.71
+"Phase 5: Quantum","Pure","Leontief","Linear",700,-237449.00,-298271.00,-1468.54,0.0010,"Rocky Desert",1051.65
+"Phase 5: Quantum","Pure","Leontief","Logistic-Step",700,-47992.38,-6302.62,24880.58,0.2164,"Northern Forest",964.81
+"Phase 5: Quantum","Pure","Linear","Gaussian",700,304814.64,-149374.42,3814.38,116.8421,"Dune Desert",887.49
+"Phase 5: Quantum","Pure","Linear","Exponential",700,305028.59,-147399.06,3876.44,71.5424,"Dune Desert",902.64
+"Phase 5: Quantum","Pure","Linear","Power-Law",700,84110.06,-29135.91,9099.19,180.7561,"Northern Forest",1038.22
+"Phase 5: Quantum","Pure","Linear","Linear",700,308376.85,-154627.35,3632.98,16.3133,"Dune Desert",879.86
+"Phase 5: Quantum","Pure","Linear","Logistic-Step",700,308269.75,-153549.75,3659.33,117.7535,"Dune Desert",885.85
+"Collectible Hunting","Default","Cobb-Douglas","Gaussian",700,4650.41,-88771.09,13348.00,6.9308,"Northern Forest",48.10
+"Collectible Hunting","Default","Cobb-Douglas","Exponential",700,7413.10,-85543.60,11132.92,5.6610,"Northern Forest",86.49
+"Collectible Hunting","Default","Cobb-Douglas","Power-Law",700,7365.00,-85498.75,11107.62,25.1358,"Northern Forest",86.32
+"Collectible Hunting","Default","Cobb-Douglas","Linear",700,-107350.03,240009.97,-3352.73,0.3555,"Grass Fields",26.50
+"Collectible Hunting","Default","Cobb-Douglas","Logistic-Step",700,7359.74,-85490.17,11103.09,3.8627,"Northern Forest",86.32
+"Collectible Hunting","Default","Leontief","Gaussian",700,7498.08,-85604.42,11170.38,1.8469,"Northern Forest",86.92
+"Collectible Hunting","Default","Leontief","Exponential",700,3459.35,-86598.75,12720.77,1.5047,"Northern Forest",48.51
+"Collectible Hunting","Default","Leontief","Power-Law",700,7355.05,-85493.71,11104.58,6.0603,"Northern Forest",86.26
+"Collectible Hunting","Default","Leontief","Linear",700,-4783.58,-80331.08,12367.88,0.1335,"Northern Forest",107.88
+"Collectible Hunting","Default","Leontief","Logistic-Step",700,31223.16,-70712.71,9804.81,1.2958,"Northern Forest",367.00
+"Collectible Hunting","Default","Linear","Gaussian",700,7667.54,-85691.54,11234.38,70.7184,"Northern Forest",87.95
+"Collectible Hunting","Default","Linear","Exponential",700,7431.95,-85557.64,11141.30,55.1758,"Northern Forest",86.58
+"Collectible Hunting","Default","Linear","Power-Law",700,7415.60,-85446.13,11085.32,254.3376,"Northern Forest",87.02
+"Collectible Hunting","Default","Linear","Linear",700,3530.71,-85837.95,12433.36,3.0671,"Northern Forest",54.58
+"Collectible Hunting","Default","Linear","Logistic-Step",700,6584.69,-86035.91,11446.38,39.8108,"Northern Forest",76.86
+"Collectible Hunting","Normal","Cobb-Douglas","Gaussian",700,4650.41,-88771.09,13348.00,6.9308,"Northern Forest",48.10
+"Collectible Hunting","Normal","Cobb-Douglas","Exponential",700,7413.10,-85543.60,11132.92,5.6610,"Northern Forest",86.49
+"Collectible Hunting","Normal","Cobb-Douglas","Power-Law",700,7365.00,-85498.75,11107.62,25.1358,"Northern Forest",86.32
+"Collectible Hunting","Normal","Cobb-Douglas","Linear",700,-107350.03,240009.97,-3352.73,0.3555,"Grass Fields",26.50
+"Collectible Hunting","Normal","Cobb-Douglas","Logistic-Step",700,7359.74,-85490.17,11103.09,3.8627,"Northern Forest",86.32
+"Collectible Hunting","Normal","Leontief","Gaussian",700,7498.08,-85604.42,11170.38,1.8469,"Northern Forest",86.92
+"Collectible Hunting","Normal","Leontief","Exponential",700,3459.35,-86598.75,12720.77,1.5047,"Northern Forest",48.51
+"Collectible Hunting","Normal","Leontief","Power-Law",700,7355.05,-85493.71,11104.58,6.0603,"Northern Forest",86.26
+"Collectible Hunting","Normal","Leontief","Linear",700,-4783.58,-80331.08,12367.88,0.1335,"Northern Forest",107.88
+"Collectible Hunting","Normal","Leontief","Logistic-Step",700,31223.16,-70712.71,9804.81,1.2958,"Northern Forest",367.00
+"Collectible Hunting","Normal","Linear","Gaussian",700,7667.54,-85691.54,11234.38,70.7184,"Northern Forest",87.95
+"Collectible Hunting","Normal","Linear","Exponential",700,7431.95,-85557.64,11141.30,55.1758,"Northern Forest",86.58
+"Collectible Hunting","Normal","Linear","Power-Law",700,7415.60,-85446.13,11085.32,254.3376,"Northern Forest",87.02
+"Collectible Hunting","Normal","Linear","Linear",700,3530.71,-85837.95,12433.36,3.0671,"Northern Forest",54.58
+"Collectible Hunting","Normal","Linear","Logistic-Step",700,6584.69,-86035.91,11446.38,39.8108,"Northern Forest",76.86
+"Collectible Hunting","Pure","Cobb-Douglas","Gaussian",700,4654.27,-88782.01,13350.85,23.0413,"Northern Forest",48.11
+"Collectible Hunting","Pure","Cobb-Douglas","Exponential",700,7423.30,-85549.18,11136.44,18.5347,"Northern Forest",86.55
+"Collectible Hunting","Pure","Cobb-Douglas","Power-Law",700,7355.52,-85491.61,11103.57,90.5163,"Northern Forest",86.27
+"Collectible Hunting","Pure","Cobb-Douglas","Linear",700,-1825.43,-81840.11,12702.59,0.7909,"Northern Forest",83.62
+"Collectible Hunting","Pure","Cobb-Douglas","Logistic-Step",700,874.27,-81426.70,12531.65,12.2959,"Northern Forest",86.18
+"Collectible Hunting","Pure","Leontief","Gaussian",700,7553.57,-85638.47,11193.20,5.7608,"Northern Forest",87.22
+"Collectible Hunting","Pure","Leontief","Exponential",700,3454.82,-86592.70,12721.14,4.5911,"Northern Forest",48.52
+"Collectible Hunting","Pure","Leontief","Power-Law",700,7359.86,-85492.72,11104.36,20.4889,"Northern Forest",86.30
+"Collectible Hunting","Pure","Leontief","Linear",700,-5390.92,-80460.96,12272.53,0.3047,"Northern Forest",109.57
+"Collectible Hunting","Pure","Leontief","Logistic-Step",700,22920.52,-73094.11,10395.29,3.7490,"Northern Forest",284.81
+"Collectible Hunting","Pure","Linear","Gaussian",700,7667.54,-85691.54,11234.38,253.5277,"Northern Forest",87.95
+"Collectible Hunting","Pure","Linear","Exponential",700,7431.95,-85557.64,11141.30,194.8331,"Northern Forest",86.58
+"Collectible Hunting","Pure","Linear","Power-Law",700,7415.60,-85446.13,11085.32,956.5442,"Northern Forest",87.02
+"Collectible Hunting","Pure","Linear","Linear",700,3530.71,-85837.95,12433.36,8.5671,"Northern Forest",54.58
+"Collectible Hunting","Pure","Linear","Logistic-Step",700,6629.07,-86126.19,11486.00,138.4665,"Northern Forest",76.78

@@ -1,4 +1,4 @@
-use crate::models::{ResourceNode, Purity};
+use crate::models::{Purity, ResourceNode};
 use serde::Deserialize;
 use std::fs::File;
 use std::io::Read;
@@ -83,7 +83,7 @@ pub fn load_nodes_from_str(s: &str) -> Result<Vec<ResourceNode>, Box<dyn std::er
                             "hardDrives" => "harddrive",
                             _ => "",
                         };
-                        
+
                         if default_res_type.is_empty() {
                             continue;
                         }
@@ -119,14 +119,14 @@ pub fn load_nodes_from_str(s: &str) -> Result<Vec<ResourceNode>, Box<dyn std::er
                             let purity_str = marker.purity.as_deref().unwrap_or("RP_Normal");
                             let purity = Purity::from_str(purity_str);
 
-                             nodes.push(ResourceNode {
+                            nodes.push(ResourceNode {
                                 resource_type: res_type.to_string(),
                                 purity,
                                 x: marker.x,
                                 y: marker.y,
                                 z: marker.z.unwrap_or(0.0),
                                 obstructed: marker.obstructed.unwrap_or(false),
-                             });
+                            });
                         }
                     }
                 }
@@ -157,7 +157,9 @@ pub fn load_default_nodes() -> Vec<ResourceNode> {
     }
 }
 
-pub fn load_nodes_from_file<P: AsRef<Path>>(path: P) -> Result<Vec<ResourceNode>, Box<dyn std::error::Error>> {
+pub fn load_nodes_from_file<P: AsRef<Path>>(
+    path: P,
+) -> Result<Vec<ResourceNode>, Box<dyn std::error::Error>> {
     let mut file = File::open(path)?;
     let mut s = String::new();
     file.read_to_string(&mut s)?;

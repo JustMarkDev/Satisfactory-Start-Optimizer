@@ -1,6 +1,6 @@
-use crate::models::{ResourceNode, OptimizerConfig, SpawnLocation, DEFAULT_SPAWNS};
-use std::collections::HashMap;
+use crate::models::{DEFAULT_SPAWNS, OptimizerConfig, ResourceNode, SpawnLocation};
 use rayon::prelude::*;
+use std::collections::HashMap;
 
 pub const MIN_X: f64 = -320000.0;
 pub const MAX_X: f64 = 420000.0;
@@ -15,6 +15,16 @@ pub struct OptimizationResult {
     pub score: f64,
     pub closest_spawn: SpawnLocation,
     pub spawn_distance: f64,
+    /// Counts of accessible (non-obstructed) local nodes, keyed by "Purity Type"
+    pub local_nodes: HashMap<String, u32>,
+    /// Counts of obstructed local nodes (require Nobelisk) keyed by "Purity Type"
+    pub obstructed_nodes: HashMap<String, u32>,
+    /// Decay-weighted yield per resource type (the values the utility function actually used)
+    pub resource_yields: HashMap<String, f64>,
+    /// Terrain Ruggedness Index: mean absolute Z-difference to spatial neighbours (metres)
+    pub terrain_ruggedness: f64,
+    /// Shannon entropy diversity of resource yields (higher = more balanced)
+    pub diversity_score: f64,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -42,18 +52,20 @@ impl SpatialGrid {
         let min_y = MIN_Y;
         let max_x = MAX_X;
         let max_y = MAX_Y;
-        
+
         let cols = (((max_x - min_x) / bucket_size).ceil() as usize).max(1);
         let rows = (((max_y - min_y) / bucket_size).ceil() as usize).max(1);
-        
+
         let mut buckets = vec![Vec::new(); cols * rows];
-        
+
         for (idx, node) in nodes.iter().enumerate() {
-            let col = (((node.x - min_x) / bucket_size) as isize).clamp(0, cols as isize - 1) as usize;
-            let row = (((node.y - min_y) / bucket_size) as isize).clamp(0, rows as isize - 1) as usize;
+            let col =
+                (((node.x - min_x) / bucket_size) as isize).clamp(0, cols as isize - 1) as usize;
+            let row =
+                (((node.y - min_y) / bucket_size) as isize).clamp(0, rows as isize - 1) as usize;
             buckets[row * cols + col].push(idx);
         }
-        
+
         Self {
             bucket_size,
             cols,
@@ -67,18 +79,30 @@ impl SpatialGrid {
 
 /// Helper to calculate distance in meters from (x, y) coordinate to the nearest water body.
 /// Satisfactory map has several prominent static lakes/oceans, plus any dynamic water wells.
-fn distance_to_nearest_water(x: f64, y: f64, opt_nodes: &[OptNode], waterwell_idx: Option<usize>) -> f64 {
+fn distance_to_nearest_water(
+    x: f64,
+    y: f64,
+    opt_nodes: &[OptNode],
+    waterwell_idx: Option<usize>,
+) -> f64 {
     let mut min_dist_cm = f64::MAX;
-    
+
     // Major static bodies of water in Satisfactory (centers and bounding boxes)
+    // Major static bodies of water in Satisfactory (centres, half-widths)
+    // Coordinates are in Unreal units (cm). Add Dune Desert small ponds to ensure
+    // water weight has effect in that biome for Phase 3 oil refinery chains.
     let water_bodies = [
-        (140000.0, 230000.0, 80000.0, 60000.0),    // Great Blue Crater Lake (South-East)
-        (-70000.0, -145000.0, 60000.0, 70000.0),  // Crater Lakes / Coal Lakes (North)
-        (-60000.0, 65000.0, 80000.0, 70000.0),    // Red Jungle Lakes
-        (45000.0, -20000.0, 30000.0, 30000.0),     // Lake Forest Lake
-        (350000.0, 225000.0, 140000.0, 150000.0),  // Eastern Swamp Lakes
+        (140000.0, 230000.0, 80000.0, 60000.0), // Great Blue Crater Lake (South-East)
+        (-70000.0, -145000.0, 60000.0, 70000.0), // Crater Lakes / Coal Lakes (Northern Forest)
+        (-60000.0, 65000.0, 80000.0, 70000.0),  // Red Jungle Lakes
+        (45000.0, -20000.0, 30000.0, 30000.0),  // Lake Forest Lake
+        (350000.0, 225000.0, 140000.0, 150000.0), // Eastern Swamp Lakes
+        // Dune Desert oil-field ponds (southern Dune Desert, near oil nodes)
+        (310000.0, -185000.0, 25000.0, 20000.0), // Southern Dune Desert pond cluster
+        (290000.0, -230000.0, 20000.0, 15000.0), // Far-south Dune Desert pond
+        (355000.0, -80000.0, 30000.0, 25000.0),  // Central-east Dune Desert oasis
     ];
-    
+
     for &(cx, cy, w, h) in &water_bodies {
         let dx = (x - cx).abs() - w / 2.0;
         let dy = (y - cy).abs() - h / 2.0;
@@ -95,7 +119,7 @@ fn distance_to_nearest_water(x: f64, y: f64, opt_nodes: &[OptNode], waterwell_id
             min_dist_cm = dist;
         }
     }
-    
+
     // Check distances to ocean boundaries (West, North, East coasts)
     if x < -250000.0 {
         min_dist_cm = min_dist_cm.min(0.0);
@@ -117,9 +141,9 @@ fn distance_to_nearest_water(x: f64, y: f64, opt_nodes: &[OptNode], waterwell_id
     } else {
         min_dist_cm = min_dist_cm.min(370000.0 - y);
     }
-    
+
     let mut min_dist_m = min_dist_cm / 100.0;
-    
+
     // Add dynamic waterwell checks
     if let Some(ww_idx) = waterwell_idx {
         for node in opt_nodes {
@@ -133,7 +157,7 @@ fn distance_to_nearest_water(x: f64, y: f64, opt_nodes: &[OptNode], waterwell_id
             }
         }
     }
-    
+
     min_dist_m
 }
 
@@ -157,10 +181,14 @@ fn estimate_altitude(
     let min_qy = y - radius_cm;
     let max_qy = y + radius_cm;
 
-    let col_start = (((min_qx - spatial_grid.min_x) / spatial_grid.bucket_size) as isize).clamp(0, spatial_grid.cols as isize - 1) as usize;
-    let col_end = (((max_qx - spatial_grid.min_x) / spatial_grid.bucket_size) as isize).clamp(0, spatial_grid.cols as isize - 1) as usize;
-    let row_start = (((min_qy - spatial_grid.min_y) / spatial_grid.bucket_size) as isize).clamp(0, spatial_grid.rows as isize - 1) as usize;
-    let row_end = (((max_qy - spatial_grid.min_y) / spatial_grid.bucket_size) as isize).clamp(0, spatial_grid.rows as isize - 1) as usize;
+    let col_start = (((min_qx - spatial_grid.min_x) / spatial_grid.bucket_size) as isize)
+        .clamp(0, spatial_grid.cols as isize - 1) as usize;
+    let col_end = (((max_qx - spatial_grid.min_x) / spatial_grid.bucket_size) as isize)
+        .clamp(0, spatial_grid.cols as isize - 1) as usize;
+    let row_start = (((min_qy - spatial_grid.min_y) / spatial_grid.bucket_size) as isize)
+        .clamp(0, spatial_grid.rows as isize - 1) as usize;
+    let row_end = (((max_qy - spatial_grid.min_y) / spatial_grid.bucket_size) as isize)
+        .clamp(0, spatial_grid.rows as isize - 1) as usize;
 
     for r_idx in row_start..=row_end {
         for c_idx in col_start..=col_end {
@@ -227,10 +255,14 @@ fn calculate_utility(
     let min_qy = y - radius_cm;
     let max_qy = y + radius_cm;
 
-    let col_start = (((min_qx - spatial_grid.min_x) / spatial_grid.bucket_size) as isize).clamp(0, spatial_grid.cols as isize - 1) as usize;
-    let col_end = (((max_qx - spatial_grid.min_x) / spatial_grid.bucket_size) as isize).clamp(0, spatial_grid.cols as isize - 1) as usize;
-    let row_start = (((min_qy - spatial_grid.min_y) / spatial_grid.bucket_size) as isize).clamp(0, spatial_grid.rows as isize - 1) as usize;
-    let row_end = (((max_qy - spatial_grid.min_y) / spatial_grid.bucket_size) as isize).clamp(0, spatial_grid.rows as isize - 1) as usize;
+    let col_start = (((min_qx - spatial_grid.min_x) / spatial_grid.bucket_size) as isize)
+        .clamp(0, spatial_grid.cols as isize - 1) as usize;
+    let col_end = (((max_qx - spatial_grid.min_x) / spatial_grid.bucket_size) as isize)
+        .clamp(0, spatial_grid.cols as isize - 1) as usize;
+    let row_start = (((min_qy - spatial_grid.min_y) / spatial_grid.bucket_size) as isize)
+        .clamp(0, spatial_grid.rows as isize - 1) as usize;
+    let row_end = (((max_qy - spatial_grid.min_y) / spatial_grid.bucket_size) as isize)
+        .clamp(0, spatial_grid.rows as isize - 1) as usize;
 
     // 1. KNN IDW Ground Height Estimation
     let z = estimate_altitude(x, y, opt_nodes, spatial_grid, config.sigma);
@@ -240,7 +272,7 @@ fn calculate_utility(
 
     let build_radius = 1.5 * config.sigma; // factory building area footprint
     let build_radius_m_sq = build_radius * build_radius;
-    
+
     // Welford's algorithm variables for online variance calculation
     let mut heights_count = 0;
     let mut heights_mean = 0.0;
@@ -256,7 +288,8 @@ fn calculate_utility(
                 let dz = (z - node.z) / 100.0;
 
                 let vertical_multiplier = 4.0;
-                let d_sq = dx * dx + dy * dy + (dz * dz * vertical_multiplier * vertical_multiplier);
+                let d_sq =
+                    dx * dx + dy * dy + (dz * dz * vertical_multiplier * vertical_multiplier);
 
                 if d_sq <= radius_m_sq {
                     let d = d_sq.sqrt();
@@ -268,14 +301,24 @@ fn calculate_utility(
                         crate::models::DistanceDecay::Exponential => (-d / config.sigma).exp(),
                         crate::models::DistanceDecay::PowerLaw => 1.0 / (d / config.sigma + 1.0),
                         crate::models::DistanceDecay::Linear => (1.0 - d / config.sigma).max(0.0),
+                        crate::models::DistanceDecay::LogisticStep => {
+                            if d <= config.sigma {
+                                1.0
+                            } else {
+                                0.05
+                            }
+                        }
                     };
                     let mut contribution = node.multiplier * decay;
-                    
+
                     // Obstructed nodes are locked behind Nobelisk explosives (Phase 1 & 2)
-                    if node.obstructed && (config.game_phase == crate::models::GamePhase::Phase1 || config.game_phase == crate::models::GamePhase::Phase2) {
+                    if node.obstructed
+                        && (config.game_phase == crate::models::GamePhase::Phase1
+                            || config.game_phase == crate::models::GamePhase::Phase2)
+                    {
                         contribution = 0.0;
                     }
-                    
+
                     yields[node.res_idx] += contribution;
 
                     // Keep track of nearby heights using Welford's algorithm
@@ -297,35 +340,60 @@ fn calculate_utility(
         let water_decay = match config.decay_func {
             crate::models::DistanceDecay::Gaussian => {
                 let two_sigma_sq = 2.0 * config.sigma * config.sigma;
-                (- (water_dist * water_dist) / two_sigma_sq).exp()
+                (-(water_dist * water_dist) / two_sigma_sq).exp()
             }
-            crate::models::DistanceDecay::Exponential => (- water_dist / config.sigma).exp(),
+            crate::models::DistanceDecay::Exponential => (-water_dist / config.sigma).exp(),
             crate::models::DistanceDecay::PowerLaw => 1.0 / (water_dist / config.sigma + 1.0),
             crate::models::DistanceDecay::Linear => (1.0 - water_dist / config.sigma).max(0.0),
+            crate::models::DistanceDecay::LogisticStep => {
+                if water_dist <= config.sigma {
+                    1.0
+                } else {
+                    0.05
+                }
+            }
         };
         yields[water_idx] = water_decay;
     }
 
-    // 3. Terrain Flatness Penalty (Standard Deviation of local ground heights)
+    // 3. Terrain Flatness Penalty (Population std dev of local node heights)
+    // Scale denominator of 20m: a 20m std dev halves the score (e⁻¹ ≈ 36.8%).
+    // Using 20 instead of 40 ensures mountainous terrain (e.g. Northern Forest,
+    // ~50-150m std dev) is meaningfully penalised vs. flat biomes (Grass Fields ~5-15m).
     let mut flatness_mult = 1.0;
     if heights_count > 1 {
         let std_dev_cm = (heights_m2 / heights_count as f64).sqrt();
         let std_dev_m = std_dev_cm / 100.0;
-        
-        // Penalize variance exponentially; scaling denominator of 40 meters standard deviation.
-        flatness_mult = (-std_dev_m / 40.0).exp();
+        flatness_mult = (-std_dev_m / 30.0).exp();
     }
 
-    // 4. Combined Utility + Radiation Penalties
+    // Gravity / Clustering Bonus: Increase yield non-linearly if multiple nodes are nearby
+    for i in 0..num_resources {
+        if yields[i] > 1.0 {
+            yields[i] *= 1.0 + 0.1 * (yields[i] - 1.0);
+        }
+    }
+
+    // 4. Combined Utility + Radiation/Threat Penalties
+    //
+    // Cobb-Douglas: normalise exponents to sum to 1.0 to enforce constant returns to scale.
+    // Without normalisation, adding more resources inflates scores non-linearly, making
+    // cross-phase comparisons meaningless (Phase 4 with 14 active weights >> Phase 1 with 4).
     let mut score = match config.utility_func {
         crate::models::UtilityFunction::CobbDouglas => {
+            let weight_sum: f64 = weights_arr[..num_resources]
+                .iter()
+                .filter(|&&w| w > 0.0)
+                .sum();
+            let norm = if weight_sum > 0.0 { weight_sum } else { 1.0 };
             let mut s = 1.0;
             for i in 0..num_resources {
                 let weight = weights_arr[i];
                 if weight > 0.0 {
                     let res_yield = yields[i];
                     let eps = epsilons_arr[i];
-                    s *= (res_yield + eps).powf(weight);
+                    // Normalised exponent: weight_i / Σ(positive_weights)
+                    s *= (res_yield + eps).powf(weight / norm);
                 }
             }
             s
@@ -369,6 +437,38 @@ fn calculate_utility(
         }
     }
 
+    // Phase-scaled spawn proximity penalty.
+    // Early-game players cannot travel far from their drop pod on foot. This penalty
+    // prevents the optimizer from recommending a remote "ideal" base location that
+    // requires a vehicle to reach from spawn — which the player won't have in Phase 1.
+    //
+    // tolerance_m: the 1/e distance at which spawn distance is penalised 63%.
+    //   Phase 1: 800 m  — strict (foot travel only)
+    //   Phase 2: 1500 m — lenient (player likely has a vehicle)
+    //   Phase 3: 3000 m — relaxed (trains/trucks operational)
+    //   Phase 4+: no penalty (helicopters, transport network established)
+    let spawn_tolerance_m: Option<f64> = match config.game_phase {
+        crate::models::GamePhase::Phase1 => Some(800.0),
+        crate::models::GamePhase::Phase2 => Some(1500.0),
+        crate::models::GamePhase::Phase3 => Some(3000.0),
+        crate::models::GamePhase::Phase4 | crate::models::GamePhase::Phase5 => None,
+    };
+
+    if let Some(tol) = spawn_tolerance_m {
+        let mut min_spawn_dist_m = f64::MAX;
+        for spawn in DEFAULT_SPAWNS {
+            let dx = (x - spawn.x) / 100.0;
+            let dy = (y - spawn.y) / 100.0;
+            let d = (dx * dx + dy * dy).sqrt();
+            if d < min_spawn_dist_m {
+                min_spawn_dist_m = d;
+            }
+        }
+        // Soft penalty: exp(-dist/tolerance). At dist=0 → 1.0; at dist=tol → e⁻¹ ≈ 0.37
+        let spawn_penalty = (-min_spawn_dist_m / tol).exp();
+        score *= spawn_penalty;
+    }
+
     score * flatness_mult
 }
 
@@ -387,10 +487,10 @@ fn run_hill_climbing(
 ) -> OptimizationResult {
     let mut curr_x = start_x;
     let mut curr_y = start_y;
-    
+
     let mut step = 10000.0;
     let tolerance = 10.0;
-    
+
     let mut max_score = calculate_utility(
         curr_x,
         curr_y,
@@ -405,8 +505,14 @@ fn run_hill_climbing(
     );
 
     let dirs = [
-        (1.0, 0.0), (-1.0, 0.0), (0.0, 1.0), (0.0, -1.0),
-        (0.7071, 0.7071), (-0.7071, 0.7071), (0.7071, -0.7071), (-0.7071, -0.7071)
+        (1.0, 0.0),
+        (-1.0, 0.0),
+        (0.0, 1.0),
+        (0.0, -1.0),
+        (0.7071, 0.7071),
+        (-0.7071, 0.7071),
+        (0.7071, -0.7071),
+        (-0.7071, -0.7071),
     ];
 
     while step > tolerance {
@@ -467,6 +573,106 @@ fn run_hill_climbing(
         }
     }
 
+    // Build inverse resource map for display names
+    let mut inv_res_map: HashMap<usize, String> = HashMap::new();
+    for (k, v) in res_to_idx {
+        inv_res_map.insert(*v, k.clone());
+    }
+
+    let search_radius_sq = (config.sigma * 100.0) * (config.sigma * 100.0);
+
+    let mut local_nodes: HashMap<String, u32> = HashMap::new();
+    let mut obstructed_nodes: HashMap<String, u32> = HashMap::new();
+
+    // Per-resource weighted yield totals (for output display)
+    let mut resource_yields: HashMap<String, f64> = HashMap::new();
+
+    // Terrain Ruggedness Index: collect Z values of all nodes within sigma for TRI
+    // TRI = mean(|Z_neighbour - Z_centre|) over nearby nodes
+    let mut tri_sum = 0.0;
+    let mut tri_count = 0usize;
+    let tri_radius_sq = (config.sigma * 0.5 * 100.0) * (config.sigma * 0.5 * 100.0); // 0.5σ neighbourhood
+
+    for node in opt_nodes {
+        let dx = curr_x - node.x;
+        let dy = curr_y - node.y;
+        let dz = final_z - node.z;
+        let d_sq_3d = dx * dx + dy * dy + (dz * dz * 16.0);
+        let d_sq_2d = dx * dx + dy * dy;
+
+        // Node inventory within sigma radius
+        if d_sq_3d <= search_radius_sq {
+            if let Some(name) = inv_res_map.get(&node.res_idx) {
+                let purity_str = if node.multiplier > 1.5 {
+                    "Pure"
+                } else if node.multiplier < 0.8 {
+                    "Impure"
+                } else {
+                    "Normal"
+                };
+                let display_name = format!("{} {}", purity_str, name);
+
+                // Separate accessible vs obstructed nodes
+                if node.obstructed
+                    && (config.game_phase == crate::models::GamePhase::Phase1
+                        || config.game_phase == crate::models::GamePhase::Phase2)
+                {
+                    *obstructed_nodes.entry(display_name).or_insert(0) += 1;
+                } else {
+                    *local_nodes.entry(display_name).or_insert(0) += 1;
+                }
+
+                // Accumulate decay-weighted yield for this resource type
+                let d_m = d_sq_3d.sqrt() / 100.0;
+                let decay = match config.decay_func {
+                    crate::models::DistanceDecay::Gaussian => {
+                        let two_sigma_sq = 2.0 * config.sigma * config.sigma;
+                        (-(d_m * d_m) / two_sigma_sq).exp()
+                    }
+                    crate::models::DistanceDecay::Exponential => (-d_m / config.sigma).exp(),
+                    crate::models::DistanceDecay::PowerLaw => 1.0 / (d_m / config.sigma + 1.0),
+                    crate::models::DistanceDecay::Linear => (1.0 - d_m / config.sigma).max(0.0),
+                    crate::models::DistanceDecay::LogisticStep => {
+                        if d_m <= config.sigma {
+                            1.0
+                        } else {
+                            0.05
+                        }
+                    }
+                };
+                *resource_yields.entry(name.clone()).or_insert(0.0) += node.multiplier * decay;
+            }
+        }
+
+        // TRI: use 2D distance only (no vertical penalty) for a fair ruggedness measure
+        if d_sq_2d <= tri_radius_sq {
+            tri_sum += ((final_z - node.z) / 100.0).abs(); // convert cm → m
+            tri_count += 1;
+        }
+    }
+
+    let terrain_ruggedness = if tri_count > 0 {
+        tri_sum / tri_count as f64
+    } else {
+        0.0
+    };
+
+    // Shannon entropy diversity of resource yields (higher = more balanced access)
+    // diversity = -Σ p_i * ln(p_i)  where p_i = yield_i / total_yield
+    let total_yield: f64 = resource_yields.values().sum();
+    let diversity_score = if total_yield > 0.0 {
+        resource_yields
+            .values()
+            .filter(|&&y| y > 0.0)
+            .map(|&y| {
+                let p = y / total_yield;
+                -p * p.ln()
+            })
+            .sum()
+    } else {
+        0.0
+    };
+
     OptimizationResult {
         x: curr_x,
         y: curr_y,
@@ -474,6 +680,11 @@ fn run_hill_climbing(
         score: max_score,
         closest_spawn,
         spawn_distance: min_dist / 100.0,
+        local_nodes,
+        obstructed_nodes,
+        resource_yields,
+        terrain_ruggedness,
+        diversity_score,
     }
 }
 
@@ -499,14 +710,17 @@ fn prepare_context(nodes: &[ResourceNode], config: &OptimizerConfig) -> SearchCo
     }
     unique_types.sort();
     unique_types.dedup();
-    
+
     let mut res_to_idx = HashMap::new();
     for (i, t) in unique_types.iter().enumerate() {
         res_to_idx.insert(t.clone(), i);
     }
-    
+
     let num_resources = unique_types.len();
-    assert!(num_resources <= 128, "Too many resource types (max 128 supported by fixed array)");
+    assert!(
+        num_resources <= 128,
+        "Too many resource types (max 128 supported by fixed array)"
+    );
 
     let mut weights_arr = vec![0.0; num_resources];
     for (res_name, &weight) in &config.weights {
@@ -515,13 +729,24 @@ fn prepare_context(nodes: &[ResourceNode], config: &OptimizerConfig) -> SearchCo
         }
     }
 
-    let mut epsilons_arr = vec![0.1; num_resources];
+    // Epsilon floors: keep small but non-zero for Cobb-Douglas/Linear to avoid log(0).
+    // For Leontief, epsilon must be near-zero — otherwise the score floor
+    // (eps/weight) is large enough that degenerate map-boundary plateaus
+    // (where no real nodes exist) yield non-negligible scores that pollute results.
+    let leontief_eps = matches!(
+        config.utility_func,
+        crate::models::UtilityFunction::Leontief
+    );
+    let mut epsilons_arr = vec![if leontief_eps { 0.001 } else { 0.1 }; num_resources];
     for (i, t) in unique_types.iter().enumerate() {
-        epsilons_arr[i] = match t.as_str() {
-            "iron" | "copper" | "limestone" => 0.005,
-            "coal" | "oil" | "waterwell" | "geyser" | "nitrogenwell" => 0.05,
-            "blueslug" | "yellowslug" | "purpleslug" | "mercer" | "somersloop" | "harddrive" => 0.1,
-            _ => 0.1,
+        epsilons_arr[i] = if leontief_eps {
+            0.001 // uniformly tiny for Leontief
+        } else {
+            match t.as_str() {
+                "iron" | "copper" | "limestone" => 0.005,
+                "coal" | "oil" | "waterwell" | "geyser" | "nitrogenwell" => 0.05,
+                _ => 0.1,
+            }
         };
     }
 
@@ -535,12 +760,13 @@ fn prepare_context(nodes: &[ResourceNode], config: &OptimizerConfig) -> SearchCo
                 crate::models::PurityOverride::Pure => 2.0,
             };
             let mut obstructed = n.obstructed;
-            
+
             // --- TEMPORARY HEURISTIC FOR UN-SAVED DEFAULT DATABASE OBSTRUCTIONS ---
             // To easily remove this later, just delete this block and set `obstructed = n.obstructed`.
             if !obstructed && n.resource_type == "caterium" {
                 // Keep only the starting Rocky Desert Caterium node open (near x = -2200m, y = -1500m)
-                let is_starting_caterium = (n.x - (-220000.0)).abs() < 50000.0 && (n.y - (-150000.0)).abs() < 50000.0;
+                let is_starting_caterium =
+                    (n.x - (-220000.0)).abs() < 50000.0 && (n.y - (-150000.0)).abs() < 50000.0;
                 if !is_starting_caterium {
                     obstructed = true;
                 }
@@ -578,7 +804,7 @@ fn grid_search_refine(
     grid_res: usize,
     min_dist_between_starts: f64,
     max_candidates: usize,
-) -> OptimizationResult {
+) -> Vec<OptimizationResult> {
     let step_x = (MAX_X - MIN_X) / grid_res as f64;
     let step_y = (MAX_Y - MIN_Y) / grid_res as f64;
 
@@ -612,17 +838,17 @@ fn grid_search_refine(
 
     let rows = grid_res + 1;
     let cols = grid_res + 1;
-    
+
     let mut local_maxima = Vec::new();
     for r in 0..rows {
         for c in 0..cols {
             let idx = r * cols + c;
             let score = scores[idx];
-            
+
             if score <= 1e-5 {
                 continue;
             }
-            
+
             let mut is_local_max = true;
             for dr in -1..=1 {
                 for dc in -1..=1 {
@@ -643,7 +869,7 @@ fn grid_search_refine(
                     break;
                 }
             }
-            
+
             if is_local_max {
                 let x = MIN_X + c as f64 * step_x;
                 let y = MIN_Y + r as f64 * step_y;
@@ -696,33 +922,95 @@ fn grid_search_refine(
         })
         .collect();
 
-    refined_results
-        .into_iter()
-        .max_by(|a, b| a.score.partial_cmp(&b.score).unwrap_or(std::cmp::Ordering::Equal))
-        .expect("No candidates optimized successfully")
+    top_n_results(refined_results, 5, 500_000.0 / 100.0) // 5 km min separation
 }
 
-fn optimize_hybrid(ctx: &SearchContext, config: &OptimizerConfig) -> OptimizationResult {
+/// Returns the top N unique results from a set of refined candidates,
+/// filtering out results within min_separation_m metres of a higher-scoring result.
+/// Also discards degenerate results where score < min_viable_score (Leontief plateau artifacts).
+fn top_n_results(
+    mut results: Vec<OptimizationResult>,
+    n: usize,
+    min_separation_m: f64,
+) -> Vec<OptimizationResult> {
+    // Save the absolute best result before filtering as a fallback to prevent empty results.
+    let absolute_best = results
+        .iter()
+        .max_by(|a, b| {
+            a.score
+                .partial_cmp(&b.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
+        .cloned();
+
+    // Filter degenerate plateau scores — these occur when hill climbing is seeded
+    // at a map corner with no nodes in range, returning only the epsilon floor.
+    let min_viable_score = 0.01;
+    results.retain(|r| r.score >= min_viable_score);
+
+    results.sort_by(|a, b| {
+        b.score
+            .partial_cmp(&a.score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    let mut kept: Vec<OptimizationResult> = Vec::new();
+    for r in results {
+        let too_close = kept.iter().any(|k| {
+            let dx = (r.x - k.x) / 100.0;
+            let dy = (r.y - k.y) / 100.0;
+            (dx * dx + dy * dy).sqrt() < min_separation_m
+        });
+        if !too_close {
+            kept.push(r);
+            if kept.len() >= n {
+                break;
+            }
+        }
+    }
+
+    // Fall back to the single absolute best candidate if all were filtered out.
+    if kept.is_empty() {
+        if let Some(best) = absolute_best {
+            kept.push(best);
+        }
+    }
+
+    kept
+}
+
+fn optimize_hybrid(ctx: &SearchContext, config: &OptimizerConfig) -> Vec<OptimizationResult> {
     let grid_res = 500;
     let min_dist_between_starts = 300.0 * 100.0;
     let max_candidates = 50;
-    grid_search_refine(ctx, config, grid_res, min_dist_between_starts, max_candidates)
+    grid_search_refine(
+        ctx,
+        config,
+        grid_res,
+        min_dist_between_starts,
+        max_candidates,
+    )
 }
 
-fn optimize_slow(ctx: &SearchContext, config: &OptimizerConfig) -> OptimizationResult {
+fn optimize_slow(ctx: &SearchContext, config: &OptimizerConfig) -> Vec<OptimizationResult> {
     let grid_res = 1000;
     let min_dist_between_starts = 200.0 * 100.0;
     let max_candidates = 100;
-    grid_search_refine(ctx, config, grid_res, min_dist_between_starts, max_candidates)
+    grid_search_refine(
+        ctx,
+        config,
+        grid_res,
+        min_dist_between_starts,
+        max_candidates,
+    )
 }
 
-fn optimize_fast(ctx: &SearchContext, config: &OptimizerConfig) -> OptimizationResult {
+fn optimize_fast(ctx: &SearchContext, config: &OptimizerConfig) -> Vec<OptimizationResult> {
     let mut starts = Vec::new();
-    
+
     for spawn in DEFAULT_SPAWNS {
         starts.push((spawn.x, spawn.y));
     }
-    
+
     let steps = 4;
     let step_x = (MAX_X - MIN_X) / (steps + 1) as f64;
     let step_y = (MAX_Y - MIN_Y) / (steps + 1) as f64;
@@ -733,7 +1021,7 @@ fn optimize_fast(ctx: &SearchContext, config: &OptimizerConfig) -> OptimizationR
             starts.push((x, y));
         }
     }
-    
+
     let refined_results: Vec<OptimizationResult> = starts
         .into_par_iter()
         .map(|(start_x, start_y)| {
@@ -752,13 +1040,11 @@ fn optimize_fast(ctx: &SearchContext, config: &OptimizerConfig) -> OptimizationR
         })
         .collect();
 
-    refined_results
-        .into_iter()
-        .max_by(|a, b| a.score.partial_cmp(&b.score).unwrap_or(std::cmp::Ordering::Equal))
-        .expect("No candidates optimized successfully")
+    top_n_results(refined_results, 5, 500_000.0 / 100.0)
 }
 
-pub fn optimize(nodes: &[ResourceNode], config: &OptimizerConfig) -> OptimizationResult {
+/// Returns up to 5 geographically distinct optimal starting locations, ranked by score.
+pub fn optimize(nodes: &[ResourceNode], config: &OptimizerConfig) -> Vec<OptimizationResult> {
     let ctx = prepare_context(nodes, config);
     match config.strategy {
         crate::models::SearchStrategy::Hybrid => optimize_hybrid(&ctx, config),
