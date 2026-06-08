@@ -24,7 +24,6 @@ use crate::optimizer;
 /// POST /api/optimize request body
 #[derive(Debug, Deserialize)]
 pub struct OptimizeRequest {
-    pub sigma: f64,
     pub utility_func: String,
     pub decay_func: String,
     pub purity_override: String,
@@ -96,8 +95,22 @@ fn parse_phase(s: &str) -> GamePhase {
         "phase3" => GamePhase::Phase3,
         "phase4" => GamePhase::Phase4,
         "phase5" => GamePhase::Phase5,
+        "collectibles" => GamePhase::Phase5,
         _ => GamePhase::Phase1,
     }
+}
+
+fn apply_collectibles_weights(weights: &mut HashMap<String, f64>) {
+    weights.clear();
+    weights.insert("blueslug".to_string(), 0.3);
+    weights.insert("yellowslug".to_string(), 0.8);
+    weights.insert("purpleslug".to_string(), 1.2);
+    weights.insert("mercer".to_string(), 1.0);
+    weights.insert("somersloop".to_string(), 1.0);
+    weights.insert("harddrive".to_string(), 1.5);
+    weights.insert("paleberry".to_string(), 0.1);
+    weights.insert("berylnut".to_string(), 0.1);
+    weights.insert("baconagaric".to_string(), 0.1);
 }
 
 // ---------------------------------------------------------------------------
@@ -105,32 +118,39 @@ fn parse_phase(s: &str) -> GamePhase {
 // ---------------------------------------------------------------------------
 
 fn build_presets() -> Vec<PresetResponse> {
-    let phases: &[(&str, &str, f64, bool)] = &[
-        ("phase1", "Phase 1 — Early Game (Tiers 1-2)", 700.0, false),
-        ("phase2", "Phase 2 — Steel & Coal (Tiers 3-4)", 1200.0, false),
-        ("phase3", "Phase 3 — Oil & Quartz (Tiers 5-6)", 2000.0, false),
-        ("phase4", "Phase 4 — Aluminum & Nuclear (Tiers 7-8)", 2500.0, true),
-        ("phase5", "Phase 5 — Quantum (Tier 9)", 3000.0, true),
+    let phases: &[(&str, &str, bool)] = &[
+        ("phase1", "Phase 1 — Early Game (Tiers 1-2)", false),
+        ("phase2", "Phase 2 — Steel & Coal (Tiers 3-4)", false),
+        ("phase3", "Phase 3 — Oil & Quartz (Tiers 5-6)", false),
+        ("phase4", "Phase 4 — Aluminum & Nuclear (Tiers 7-8)", true),
+        ("phase5", "Phase 5 — Quantum (Tier 9)", true),
+        ("collectibles", "Collectibles — Slugs, Artifacts & Hard Drives", true),
     ];
 
     phases
         .iter()
-        .map(|(id, name, sigma, ignore_spawns)| {
+        .map(|(id, name, ignore_spawns)| {
             let mut weights = HashMap::<String, f64>::new();
 
-            // Apply the standard model weights via the Rust model system
-            let phase = parse_phase(id);
-            phase.apply_weights(&mut weights);
+            if *id == "collectibles" {
+                apply_collectibles_weights(&mut weights);
+            } else {
+                // Apply the standard model weights via the Rust model system
+                let phase = parse_phase(id);
+                phase.apply_weights(&mut weights);
+            }
 
             // Force berylnut / paleberry / baconagaric off by default
-            weights.insert("paleberry".to_string(), 0.0);
-            weights.insert("berylnut".to_string(), 0.0);
-            weights.insert("baconagaric".to_string(), 0.0);
+            if *id != "collectibles" {
+                weights.insert("paleberry".to_string(), 0.0);
+                weights.insert("berylnut".to_string(), 0.0);
+                weights.insert("baconagaric".to_string(), 0.0);
+            }
 
             PresetResponse {
                 id: id.to_string(),
                 name: name.to_string(),
-                sigma: *sigma,
+                sigma: 700.0,
                 ignore_spawns: *ignore_spawns,
                 weights,
             }
@@ -159,7 +179,7 @@ async fn post_optimize(
 
     // Build OptimizerConfig from request
     let mut config = OptimizerConfig {
-        sigma: req.sigma.clamp(50.0, 5000.0),
+        sigma: 700.0,
         weights: req.weights.clone(),
         purity_override: parse_purity(&req.purity_override),
         strategy: parse_strategy(&req.strategy),
@@ -235,4 +255,29 @@ pub async fn run_server(port: u16) -> std::io::Result<()> {
     .bind(("127.0.0.1", port))?
     .run()
     .await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn presets_include_collectibles_and_late_water_wells() {
+        let presets = build_presets();
+
+        let collectibles = presets
+            .iter()
+            .find(|p| p.id == "collectibles")
+            .expect("collectibles preset missing");
+        assert!(collectibles.weights.get("harddrive").copied().unwrap_or(0.0) > 0.0);
+        assert!(collectibles.weights.get("purpleslug").copied().unwrap_or(0.0) > 0.0);
+
+        for phase_id in ["phase4", "phase5"] {
+            let preset = presets
+                .iter()
+                .find(|p| p.id == phase_id)
+                .expect("late phase preset missing");
+            assert!(preset.weights.get("waterwell").copied().unwrap_or(0.0) > 0.0);
+        }
+    }
 }

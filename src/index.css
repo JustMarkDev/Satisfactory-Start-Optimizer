@@ -123,6 +123,7 @@ body {
 .preset-buttons,
 .toggle-buttons {
   display: flex;
+  flex-wrap: wrap;
   background-color: var(--color-bg-darkest);
   padding: 3px;
   border-radius: 6px;

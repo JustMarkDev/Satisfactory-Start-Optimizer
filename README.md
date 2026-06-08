@@ -192,10 +192,10 @@ If you want to integrate the optimizer with automated scripting pipelines or pri
   cargo run --release -- --purity impure --json
   ```
 
-- Quietly solve with custom walk radius and dynamic weights:
+- Quietly solve with custom dynamic weights:
 
   ```bash
-  cargo run --release -- --sigma 800 --iron 1.5 --uranium -5.0 --json
+  cargo run --release -- --iron 1.5 --uranium -5.0 --json
   ```
 
 - View the full help menu:

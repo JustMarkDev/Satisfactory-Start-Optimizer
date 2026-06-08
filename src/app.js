@@ -77,8 +77,6 @@ const els = {
   zoomContainer: document.getElementById("zoom-container"),
   mapInnerContainer: document.getElementById("map-inner-container"),
 
-  paramSigma: document.getElementById("param-sigma"),
-  valSigma: document.getElementById("val-sigma"),
   paramUtility: document.getElementById("param-utility"),
   paramDecay: document.getElementById("param-decay"),
   paramPurity: document.getElementById("param-purity"),
@@ -302,7 +300,6 @@ async function runGlobalOptimization() {
   try {
     // Build the request body
     const reqBody = {
-      sigma: config.sigma,
       utility_func: config.utilityFunc,
       decay_func: config.decayFunc,
       purity_override: config.purityOverride,
@@ -773,23 +770,17 @@ function applyPhasePreset(phaseId) {
     }
   }
 
-  // Apply presets (sigma and ignoreSpawns) dynamically from PRESETS_RAW
+  // Apply preset spawn behavior dynamically; walking radius stays fixed at 700m.
   const rawPreset = PRESETS_RAW.find((p) => p.id === phaseId);
   if (rawPreset) {
     state.config.ignoreSpawns = rawPreset.ignore_spawns;
     els.paramIgnoreSpawns.value = rawPreset.ignore_spawns ? "true" : "false";
-
-    state.config.sigma = rawPreset.sigma;
-    els.paramSigma.value = rawPreset.sigma;
-    els.valSigma.textContent = rawPreset.sigma;
   } else {
     // Fallbacks just in case
     state.config.ignoreSpawns = false;
     els.paramIgnoreSpawns.value = "false";
-    state.config.sigma = 700;
-    els.paramSigma.value = 700;
-    els.valSigma.textContent = 700;
   }
+  state.config.sigma = 700;
 
   // Redraw weight sliders UI
   renderWeightSliders();
@@ -826,13 +817,6 @@ function setupEvents() {
   });
 
   // Parameter Inputs
-  els.paramSigma.addEventListener("input", (e) => {
-    const val = parseInt(e.target.value);
-    state.config.sigma = val;
-    els.valSigma.textContent = val;
-    clearComputation();
-  });
-
   els.paramUtility.addEventListener("change", (e) => {
     state.config.utilityFunc = e.target.value;
     clearComputation();

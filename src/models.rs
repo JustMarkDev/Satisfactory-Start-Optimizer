@@ -163,6 +163,7 @@ impl GamePhase {
                 weights.insert("caterium".to_string(), 0.8);
                 weights.insert("bauxite".to_string(), 1.0); // Aluminum focus
                 weights.insert("nitrogenwell".to_string(), 0.8);
+                weights.insert("waterwell".to_string(), 0.8);
                 weights.insert("geyser".to_string(), 0.8);
                 // Nuclear power is the primary goal at Tier 7-8; player has hazmat suit
                 weights.insert("uranium".to_string(), 0.6);
@@ -191,6 +192,7 @@ impl GamePhase {
                 weights.insert("caterium".to_string(), 0.8);
                 weights.insert("bauxite".to_string(), 0.8);
                 weights.insert("nitrogenwell".to_string(), 0.8);
+                weights.insert("waterwell".to_string(), 0.7);
                 weights.insert("geyser".to_string(), 0.8);
                 // Ficsonium production requires uranium; player has hazmat suit at this stage
                 weights.insert("uranium".to_string(), 0.5);
