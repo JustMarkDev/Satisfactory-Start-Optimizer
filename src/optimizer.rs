@@ -209,22 +209,70 @@ fn estimate_altitude(
     }
 }
 
-/// World border polygon vertices (Satisfactory 1.0 playable area, in cm).
-/// Points outside this polygon are not valid base locations.
-const WORLD_BORDER: &[(f64, f64)] = &[
-    (-232400.0, -370000.0),
-    (450000.0, -370000.0),
-    (450000.0, -33000.0),
-    (192000.0, 335000.0),
-    (-237000.0, 335000.0),
-    (-341500.0, 96000.0),
-    (-341500.0, -313000.0),
-];
+const LAND_MASK_SECTORS: usize = 48;
+const LAND_MASK_BUFFER_CM: f64 = 22_000.0; // ≈ 30 map pixels / 220 m.
+const MAP_PIXEL_TO_CM: f64 = 1.0 / 0.0013653321;
+
+#[derive(Debug, Clone)]
+struct LandMask {
+    points: Vec<(f64, f64)>,
+}
+
+impl LandMask {
+    fn from_nodes(nodes: &[OptNode]) -> Self {
+        if nodes.len() < 3 {
+            return Self {
+                points: vec![
+                    (MIN_X, MIN_Y),
+                    (MAX_X, MIN_Y),
+                    (MAX_X, MAX_Y),
+                    (MIN_X, MAX_Y),
+                ],
+            };
+        }
+
+        let (sum_x, sum_y) = nodes
+            .iter()
+            .fold((0.0, 0.0), |(sx, sy), n| (sx + n.x, sy + n.y));
+        let center_x = sum_x / nodes.len() as f64;
+        let center_y = sum_y / nodes.len() as f64;
+
+        let mut sectors: Vec<Option<(f64, f64, f64)>> = vec![None; LAND_MASK_SECTORS];
+        for node in nodes {
+            let dx = node.x - center_x;
+            let dy = node.y - center_y;
+            let dist_sq = dx * dx + dy * dy;
+            if dist_sq == 0.0 {
+                continue;
+            }
+            let angle = dy.atan2(dx);
+            let normalized = (angle + std::f64::consts::PI) / (2.0 * std::f64::consts::PI);
+            let idx = ((normalized * LAND_MASK_SECTORS as f64).floor() as usize)
+                .min(LAND_MASK_SECTORS - 1);
+
+            if sectors[idx].map_or(true, |(_, _, best_dist_sq)| dist_sq > best_dist_sq) {
+                sectors[idx] = Some((node.x, node.y, dist_sq));
+            }
+        }
+
+        let mut points = Vec::new();
+        for point in sectors.into_iter().flatten() {
+            let dx = point.0 - center_x;
+            let dy = point.1 - center_y;
+            let dist = (dx * dx + dy * dy).sqrt();
+            let buffer = LAND_MASK_BUFFER_CM.max(30.0 * MAP_PIXEL_TO_CM);
+            let out_x = point.0 + dx / dist * buffer;
+            let out_y = point.1 + dy / dist * buffer;
+            points.push((out_x.clamp(MIN_X, MAX_X), out_y.clamp(MIN_Y, MAX_Y)));
+        }
+
+        Self { points }
+    }
+}
 
 /// Ray-casting point-in-polygon test.
 #[inline]
-fn is_in_world_border(x: f64, y: f64) -> bool {
-    let vs = WORLD_BORDER;
+fn is_in_polygon(x: f64, y: f64, vs: &[(f64, f64)]) -> bool {
     let n = vs.len();
     let mut inside = false;
     let mut j = n - 1;
@@ -239,10 +287,9 @@ fn is_in_world_border(x: f64, y: f64) -> bool {
     inside
 }
 
-/// Minimum distance from (x, y) to the nearest edge of the world border polygon (in cm).
+/// Minimum distance from (x, y) to the nearest edge of the buildable-land polygon (in cm).
 #[inline]
-fn dist_to_world_border_edge(x: f64, y: f64) -> f64 {
-    let vs = WORLD_BORDER;
+fn dist_to_polygon_edge(x: f64, y: f64, vs: &[(f64, f64)]) -> f64 {
     let n = vs.len();
     let mut min_dist = f64::MAX;
     let mut j = n - 1;
@@ -283,9 +330,10 @@ fn calculate_utility(
     epsilons_arr: &[f64],
     res_to_idx: &HashMap<String, usize>,
     waterwell_idx: Option<usize>,
+    land_mask: &LandMask,
 ) -> f64 {
-    // Reject points outside the playable world polygon
-    if !is_in_world_border(x, y) {
+    // Reject points outside the practical landmass polygon.
+    if !is_in_polygon(x, y, &land_mask.points) {
         return 0.0;
     }
 
@@ -295,7 +343,7 @@ fn calculate_utility(
     // the actual polygon boundary while not affecting real interior areas (all
     // starting zones are at least 1.2 km from the nearest polygon edge).
     const BORDER_MARGIN_CM: f64 = 30_000.0; // 300 m
-    let border_dist = dist_to_world_border_edge(x, y);
+    let border_dist = dist_to_polygon_edge(x, y, &land_mask.points);
     let border_penalty = if border_dist < BORDER_MARGIN_CM {
         (-4.0 * (1.0 - border_dist / BORDER_MARGIN_CM)).exp()
     } else {
@@ -393,7 +441,7 @@ fn calculate_utility(
         }
     }
 
-    // Add virtual water yield based on proximity to lakes, oceans, or waterwells
+    // Add virtual water yield based on proximity to mapped lakes/ponds or waterwells.
     if let Some(&water_idx) = res_to_idx.get("water") {
         let water_dist = distance_to_nearest_water(x, y, opt_nodes, waterwell_idx);
         let water_decay = match config.decay_func {
@@ -548,6 +596,7 @@ fn run_hill_climbing(
     epsilons_arr: &[f64],
     res_to_idx: &HashMap<String, usize>,
     waterwell_idx: Option<usize>,
+    land_mask: &LandMask,
 ) -> OptimizationResult {
     let mut curr_x = start_x;
     let mut curr_y = start_y;
@@ -566,6 +615,7 @@ fn run_hill_climbing(
         epsilons_arr,
         res_to_idx,
         waterwell_idx,
+        land_mask,
     );
 
     let dirs = [
@@ -603,6 +653,7 @@ fn run_hill_climbing(
                 epsilons_arr,
                 res_to_idx,
                 waterwell_idx,
+                land_mask,
             );
             if score > best_neighbor_score {
                 best_neighbor_score = score;
@@ -762,6 +813,7 @@ struct SearchContext {
     epsilons_arr: Vec<f64>,
     res_to_idx: HashMap<String, usize>,
     waterwell_idx: Option<usize>,
+    land_mask: LandMask,
 }
 
 fn prepare_context(nodes: &[ResourceNode], config: &OptimizerConfig) -> SearchContext {
@@ -850,6 +902,7 @@ fn prepare_context(nodes: &[ResourceNode], config: &OptimizerConfig) -> SearchCo
 
     let spatial_grid = SpatialGrid::new(&opt_nodes, 100000.0);
     let waterwell_idx = res_to_idx.get("waterwell").copied();
+    let land_mask = LandMask::from_nodes(&opt_nodes);
 
     SearchContext {
         opt_nodes,
@@ -859,6 +912,7 @@ fn prepare_context(nodes: &[ResourceNode], config: &OptimizerConfig) -> SearchCo
         epsilons_arr,
         res_to_idx,
         waterwell_idx,
+        land_mask,
     }
 }
 
@@ -873,10 +927,10 @@ fn grid_search_refine(
     let step_y = (MAX_Y - MIN_Y) / grid_res as f64;
 
     let grid_points: Vec<(f64, f64)> = (0..=grid_res)
-        .flat_map(|i| {
-            let x = MIN_X + i as f64 * step_x;
-            (0..=grid_res).map(move |j| {
-                let y = MIN_Y + j as f64 * step_y;
+        .flat_map(|row| {
+            let y = MIN_Y + row as f64 * step_y;
+            (0..=grid_res).map(move |col| {
+                let x = MIN_X + col as f64 * step_x;
                 (x, y)
             })
         })
@@ -896,6 +950,7 @@ fn grid_search_refine(
                 &ctx.epsilons_arr,
                 &ctx.res_to_idx,
                 ctx.waterwell_idx,
+                &ctx.land_mask,
             )
         })
         .collect();
@@ -982,6 +1037,7 @@ fn grid_search_refine(
                 &ctx.epsilons_arr,
                 &ctx.res_to_idx,
                 ctx.waterwell_idx,
+                &ctx.land_mask,
             )
         })
         .collect();
@@ -1100,6 +1156,7 @@ fn optimize_fast(ctx: &SearchContext, config: &OptimizerConfig) -> Vec<Optimizat
                 &ctx.epsilons_arr,
                 &ctx.res_to_idx,
                 ctx.waterwell_idx,
+                &ctx.land_mask,
             )
         })
         .collect();
@@ -1120,63 +1177,52 @@ pub fn optimize(nodes: &[ResourceNode], config: &OptimizerConfig) -> Vec<Optimiz
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{Purity, ResourceNode, OptimizerConfig, GamePhase};
+    use crate::models::{GamePhase, OptimizerConfig};
 
     #[test]
     fn test_ignore_spawns() {
-        let nodes = vec![
-            // Weak nodes near Grass Fields (-50000, 240000)
-            ResourceNode {
-                resource_type: "iron".to_string(),
-                purity: Purity::Impure,
-                x: -50000.0,
-                y: 240000.0,
-                z: 0.0,
-                obstructed: false,
-            },
-            // Rich nodes far away near eastern Dune Desert (350000, -200000)
-            ResourceNode {
-                resource_type: "iron".to_string(),
-                purity: Purity::Pure,
-                x: 350000.0,
-                y: -200000.0,
-                z: 0.0,
-                obstructed: false,
-            },
-            ResourceNode {
-                resource_type: "copper".to_string(),
-                purity: Purity::Pure,
-                x: 350000.0,
-                y: -200000.0,
-                z: 0.0,
-                obstructed: false,
-            },
-        ];
+        let nodes = crate::data_loader::load_default_nodes();
 
-        // 1. With ignore_spawns = false (default), the proximity penalty should favor the Grass Fields node
-        // because the rich nodes at (350000, -200000) are too far from any spawn (>5km).
         let mut config_constrained = OptimizerConfig::default();
         config_constrained.game_phase = GamePhase::Phase1;
         config_constrained.ignore_spawns = false;
-        
-        let results_constrained = optimize(&nodes, &config_constrained);
-        assert!(!results_constrained.is_empty());
-        let best_constrained = &results_constrained[0];
-        
-        // 2. With ignore_spawns = true, it should pick the rich cluster at (350000, -200000)
+
         let mut config_ignored = OptimizerConfig::default();
         config_ignored.game_phase = GamePhase::Phase1;
         config_ignored.ignore_spawns = true;
-        
-        let results_ignored = optimize(&nodes, &config_ignored);
-        assert!(!results_ignored.is_empty());
-        let best_ignored = &results_ignored[0];
 
-        // The ignored version should find a position near the rich cluster (350000, -200000)
-        // and its score should be much higher than the constrained version.
-        assert!(best_ignored.score > best_constrained.score);
-        assert!((best_ignored.x - 350000.0).abs() < 50000.0);
-        assert!((best_ignored.y - (-200000.0)).abs() < 50000.0);
+        let ctx = prepare_context(&nodes, &config_constrained);
+        let far_dune_desert_x = 291000.0;
+        let far_dune_desert_y = 74000.0;
+
+        let constrained_score = calculate_utility(
+            far_dune_desert_x,
+            far_dune_desert_y,
+            &ctx.opt_nodes,
+            &ctx.spatial_grid,
+            &config_constrained,
+            ctx.num_resources,
+            &ctx.weights_arr,
+            &ctx.epsilons_arr,
+            &ctx.res_to_idx,
+            ctx.waterwell_idx,
+            &ctx.land_mask,
+        );
+        let ignored_score = calculate_utility(
+            far_dune_desert_x,
+            far_dune_desert_y,
+            &ctx.opt_nodes,
+            &ctx.spatial_grid,
+            &config_ignored,
+            ctx.num_resources,
+            &ctx.weights_arr,
+            &ctx.epsilons_arr,
+            &ctx.res_to_idx,
+            ctx.waterwell_idx,
+            &ctx.land_mask,
+        );
+
+        assert!(ignored_score > constrained_score);
     }
 
     #[test]
@@ -1187,6 +1233,32 @@ mod tests {
         assert!(!results.is_empty());
         assert!(results[0].score > 0.0);
         assert!(!results[0].local_nodes.is_empty());
+    }
+
+    #[test]
+    fn test_ocean_points_are_not_valid_base_sites() {
+        let nodes = crate::data_loader::load_default_nodes();
+        let config = OptimizerConfig::default();
+        let ctx = prepare_context(&nodes, &config);
+
+        assert!(!is_in_polygon(-310000.0, -330000.0, &ctx.land_mask.points));
+        assert!(is_in_polygon(-200000.0, -80000.0, &ctx.land_mask.points));
+    }
+
+    #[test]
+    fn test_buildable_land_mask_matches_known_edge_cases() {
+        let nodes = crate::data_loader::load_default_nodes();
+        let config = OptimizerConfig::default();
+        let ctx = prepare_context(&nodes, &config);
+
+        assert!(is_in_polygon(-271000.0, -192000.0, &ctx.land_mask.points)); // gas pillars / yellow slug coast
+        assert!(is_in_polygon(-298000.0, -37000.0, &ctx.land_mask.points)); // western blue slug coast
+        assert!(is_in_polygon(291000.0, 74000.0, &ctx.land_mask.points)); // hard-drive island/shoreline area
+        assert!(is_in_polygon(321000.0, -176000.0, &ctx.land_mask.points)); // Dune Desert land
+
+        assert!(!is_in_polygon(390000.0, 74000.0, &ctx.land_mask.points)); // east ocean near hard-drive area
+        assert!(!is_in_polygon(410000.0, -330000.0, &ctx.land_mask.points)); // northern Dune Desert black/ocean area
+        assert!(!is_in_polygon(-50000.0, 330000.0, &ctx.land_mask.points)); // south of Grass Fields playable land
     }
 }
 

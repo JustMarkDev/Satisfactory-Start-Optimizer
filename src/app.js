@@ -1,26 +1,14 @@
 // FICSIT Starting Position Optimizer
 // Web Dashboard Logic
 
-// Game Map Constants (Centimeter Units)
-const MIN_X = -320000.0;
-const MAX_X = 420000.0;
-const MIN_Y = -370000.0;
-const MAX_Y = 370000.0;
-
-// World Border Polygon vertices (Satisfactory Map coordinates)
-const WORLD_BORDER_POLYGON = [
-  [-232400, -370000],
-  [450000, -370000],
-  [450000, -33000],
-  [192000, 335000],
-  [-237000, 335000],
-  [-341500, 96000],
-  [-341500, -313000]
-];
+const LAND_MASK_SECTORS = 48;
+const LAND_MASK_BUFFER_CM = 22000;
+const MAP_PIXEL_TO_CM = 1 / 0.0013653321;
 
 let DEFAULT_SPAWNS = [];
 let PRESETS = {};
 let PRESETS_RAW = [];
+let buildableLandPolygon = [];
 
 // Resource Registry and Stylings
 const RESOURCES = [
@@ -54,7 +42,7 @@ const RESOURCES = [
 
   // Threats
   { id: "sporeflower", name: "Spore Flower", color: "#8B008B", category: "threat" },
-  { id: "gaspillar", name: "Gas Pillar", color: "#2E8B57", category: "threat" }
+  { id: "gaspillar", name: "Gas Pillar", color: "#2E8B57", category: "threat" },
 ];
 
 // App State
@@ -68,14 +56,14 @@ const state = {
     ignoreSpawns: false,
     gamePhase: "phase1",
     strategy: "hybrid",
-    weights: {}
+    weights: {},
   },
   selectedResultIdx: 0,
   results: [],
   mapType: "realistic", // "game" or "realistic"
   visibleLayers: {
-    nodes: true
-  }
+    nodes: true,
+  },
 };
 
 // UI Elements
@@ -88,7 +76,7 @@ const els = {
   mapTooltip: document.getElementById("map-tooltip"),
   zoomContainer: document.getElementById("zoom-container"),
   mapInnerContainer: document.getElementById("map-inner-container"),
-  
+
   paramSigma: document.getElementById("param-sigma"),
   valSigma: document.getElementById("val-sigma"),
   paramUtility: document.getElementById("param-utility"),
@@ -96,7 +84,7 @@ const els = {
   paramPurity: document.getElementById("param-purity"),
   paramStrategy: document.getElementById("param-strategy"),
   paramIgnoreSpawns: document.getElementById("param-ignore-spawns"),
-  btnCompute: document.getElementById("btn-compute")
+  btnCompute: document.getElementById("btn-compute"),
 };
 
 // Projection conversion formulas (Game coordinate -> Raster pixel coordinates inside a 1280x1280 canvas/SVG)
@@ -106,24 +94,55 @@ function gameToPixel(gx, gy) {
   return { x: px, y: py };
 }
 
-// Pixel coordinate inside a 1280x1280 element -> Game Coordinate
-function pixelToGame(px, py) {
-  const gx = (px - 571.321) / 0.0013653321;
-  const gy = (py - 640.0) / 0.0013653333;
-  return { x: gx, y: gy };
+function computeBuildableLandPolygon(nodes) {
+  if (!nodes.length) return [];
+
+  const center = nodes.reduce(
+    (acc, node) => {
+      acc.x += node.x;
+      acc.y += node.y;
+      return acc;
+    },
+    { x: 0, y: 0 },
+  );
+  center.x /= nodes.length;
+  center.y /= nodes.length;
+
+  const sectors = Array.from({ length: LAND_MASK_SECTORS }, () => null);
+  nodes.forEach((node) => {
+    const dx = node.x - center.x;
+    const dy = node.y - center.y;
+    const distSq = dx * dx + dy * dy;
+    if (distSq === 0) return;
+
+    const angle = Math.atan2(dy, dx);
+    const normalized = (angle + Math.PI) / (2 * Math.PI);
+    const idx = Math.min(LAND_MASK_SECTORS - 1, Math.floor(normalized * LAND_MASK_SECTORS));
+    if (!sectors[idx] || distSq > sectors[idx].distSq) {
+      sectors[idx] = { x: node.x, y: node.y, distSq };
+    }
+  });
+
+  const buffer = Math.max(LAND_MASK_BUFFER_CM, 30 * MAP_PIXEL_TO_CM);
+  return sectors.filter(Boolean).map((point) => {
+    const dx = point.x - center.x;
+    const dy = point.y - center.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    return [point.x + (dx / dist) * buffer, point.y + (dy / dist) * buffer];
+  });
 }
 
 // Parse Complete Map Data from Raw JSON format
 function parseNodes(data) {
   const nodes = [];
   const waterwellIndices = [];
-  
+
   if (data && data.options) {
-    data.options.forEach(category => {
+    data.options.forEach((category) => {
       if (category.options) {
-        category.options.forEach(subcat => {
+        category.options.forEach((subcat) => {
           if (subcat.options) {
-            subcat.options.forEach(item => {
+            subcat.options.forEach((item) => {
               let resType = "";
               const id = item.layerId;
               if (id.startsWith("limestone")) resType = "limestone";
@@ -151,28 +170,54 @@ function parseNodes(data) {
               else if (id === "baconAgaric") resType = "baconagaric";
               else if (id === "sporeFlowers") resType = "sporeflower";
               else if (id === "pillars") resType = "gaspillar";
-              
+
               if (!resType) return;
-              
+
               if (item.markers) {
                 const addMarker = (marker) => {
                   let rawType = marker.type || resType;
                   let mType = resType;
-                  
+
                   switch (rawType) {
-                    case "Desc_Stone_C": mType = "limestone"; break;
-                    case "Desc_OreIron_C": mType = "iron"; break;
-                    case "Desc_OreCopper_C": mType = "copper"; break;
-                    case "Desc_OreGold_C": mType = "caterium"; break;
-                    case "Desc_Coal_C": mType = "coal"; break;
-                    case "Desc_LiquidOil_C": mType = "oil"; break;
-                    case "Desc_Sulfur_C": mType = "sulfur"; break;
-                    case "Desc_OreBauxite_C": mType = "bauxite"; break;
-                    case "Desc_RawQuartz_C": mType = "quartz"; break;
-                    case "Desc_OreUranium_C": mType = "uranium"; break;
-                    case "Desc_SAM_C": mType = "sam"; break;
-                    case "Desc_NitrogenGas_C": mType = "nitrogenwell"; break;
-                    case "Desc_Water_C": mType = "waterwell"; break;
+                    case "Desc_Stone_C":
+                      mType = "limestone";
+                      break;
+                    case "Desc_OreIron_C":
+                      mType = "iron";
+                      break;
+                    case "Desc_OreCopper_C":
+                      mType = "copper";
+                      break;
+                    case "Desc_OreGold_C":
+                      mType = "caterium";
+                      break;
+                    case "Desc_Coal_C":
+                      mType = "coal";
+                      break;
+                    case "Desc_LiquidOil_C":
+                      mType = "oil";
+                      break;
+                    case "Desc_Sulfur_C":
+                      mType = "sulfur";
+                      break;
+                    case "Desc_OreBauxite_C":
+                      mType = "bauxite";
+                      break;
+                    case "Desc_RawQuartz_C":
+                      mType = "quartz";
+                      break;
+                    case "Desc_OreUranium_C":
+                      mType = "uranium";
+                      break;
+                    case "Desc_SAM_C":
+                      mType = "sam";
+                      break;
+                    case "Desc_NitrogenGas_C":
+                      mType = "nitrogenwell";
+                      break;
+                    case "Desc_Water_C":
+                      mType = "waterwell";
+                      break;
                     default:
                       if (marker.pathName && marker.pathName.includes("BP_ResourceNodeGeyser")) {
                         mType = "geyser";
@@ -181,10 +226,10 @@ function parseNodes(data) {
                       }
                       break;
                   }
-                  
+
                   if (mType.startsWith("water")) mType = "waterwell";
                   if (mType.startsWith("nitrogen")) mType = "nitrogenwell";
-                  
+
                   let purityStr = marker.purity || item.purity || "normal";
                   let purityMultiplier = 1.0;
                   if (purityStr.includes("pure") && !purityStr.includes("impure")) {
@@ -192,15 +237,15 @@ function parseNodes(data) {
                   } else if (purityStr.includes("impure") || purityStr.includes("inpure")) {
                     purityMultiplier = 0.5;
                   }
-                  
+
                   let obstructed = !!marker.obstructed;
                   if (!obstructed && mType === "caterium") {
-                    const isStartingCaterium = 
-                      Math.abs(marker.x - (-220000.0)) < 50000.0 && 
-                      Math.abs(marker.y - (-150000.0)) < 50000.0;
+                    const isStartingCaterium =
+                      Math.abs(marker.x - -220000.0) < 50000.0 &&
+                      Math.abs(marker.y - -150000.0) < 50000.0;
                     if (!isStartingCaterium) obstructed = true;
                   }
-                  
+
                   const node = {
                     resource_type: mType,
                     x: parseFloat(marker.x),
@@ -208,11 +253,11 @@ function parseNodes(data) {
                     z: parseFloat(marker.z || 0),
                     purityMultiplier,
                     purity: purityStr,
-                    obstructed
+                    obstructed,
                   };
-                  
+
                   nodes.push(node);
-                  
+
                   if (mType === "waterwell") {
                     waterwellIndices.push(nodes.length - 1);
                   }
@@ -220,8 +265,8 @@ function parseNodes(data) {
 
                 if (Array.isArray(item.markers)) {
                   item.markers.forEach(addMarker);
-                } else if (typeof item.markers === 'object' && item.markers !== null) {
-                  Object.keys(item.markers).forEach(k => {
+                } else if (typeof item.markers === "object" && item.markers !== null) {
+                  Object.keys(item.markers).forEach((k) => {
                     addMarker(item.markers[k]);
                   });
                 }
@@ -232,7 +277,7 @@ function parseNodes(data) {
       }
     });
   }
-  
+
   nodes.waterwellIndices = waterwellIndices;
   return nodes;
 }
@@ -243,18 +288,17 @@ function parseNodes(data) {
 // western/northern edges are mountain walls, not ocean — those checks caused the optimizer
 // to treat map border areas as having free water access, pulling results to the edge.
 
-
 // Call the Rust API server or fall back to JS optimizer
 // Call the Rust API server
 async function runGlobalOptimization() {
   const { rawNodes, config } = state;
   if (!rawNodes.length) return;
-  
+
   // Show loading state
   els.mapLoading.innerHTML = `<span style="font-weight: 700; letter-spacing: 1px;">COMPUTING OPTIMAL SITES...</span>
     <span style="font-size: 0.8rem; color: var(--color-text-muted); margin-top: 6px;">Calling Rust optimizer...</span>`;
   els.mapLoading.classList.add("active");
-  
+
   try {
     // Build the request body
     const reqBody = {
@@ -265,32 +309,29 @@ async function runGlobalOptimization() {
       strategy: config.strategy,
       game_phase: config.gamePhase,
       ignore_spawns: config.ignoreSpawns,
-      weights: Object.fromEntries(
-        Object.entries(config.weights).filter(([_, v]) => v !== 0)
-      )
+      weights: Object.fromEntries(Object.entries(config.weights).filter(([_, v]) => v !== 0)),
     };
-    
-    const apiRes = await fetch('/api/optimize', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+
+    const apiRes = await fetch("/api/optimize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(reqBody),
-      signal: AbortSignal.timeout(30000)
+      signal: AbortSignal.timeout(30000),
     });
-    
+
     if (!apiRes.ok) throw new Error(`API error ${apiRes.status}`);
-    
+
     const results = await apiRes.json();
-    
+
     // The Rust API returns local_nodes as a flat object, which JS can use directly
     state.results = results.slice(0, 3);
     state.selectedResultIdx = 0;
-    
+
     renderMapOverlay();
     renderResultsPanel();
     els.mapLoading.classList.remove("active");
-    
   } catch (apiErr) {
-    console.error('Rust API error:', apiErr.message);
+    console.error("Rust API error:", apiErr.message);
     els.mapLoading.innerHTML = `<span style="color: #ff3333; font-weight: bold; font-size: 1.1rem; margin-bottom: 12px;">OPTIMIZATION FAILED: ${apiErr.message}</span>
       <span style="font-size: 0.8rem; color: var(--color-text-muted);">Please make sure the Rust API server is running on port 8080.</span>
       <button class="btn btn-compute" style="margin-top: 12px; width: auto; padding: 8px 16px;" onclick="location.reload()">Reset View</button>`;
@@ -304,23 +345,25 @@ async function runGlobalOptimization() {
 function renderMapOverlay() {
   const svg = els.svgOverlay;
   svg.innerHTML = ""; // Clear existing markers
-  
+
   // Set Viewbox coordinates to 1280x1280 so rendering is completely responsive
   svg.setAttribute("viewBox", "0 0 1280 1280");
-  
-  const activeKeys = Object.keys(state.config.weights).filter(k => Math.abs(state.config.weights[k]) > 0);
-  
+
+  const activeKeys = Object.keys(state.config.weights).filter(
+    (k) => Math.abs(state.config.weights[k]) > 0,
+  );
+
   // 1. Draw Resource Nodes (if layer visible)
   if (state.visibleLayers.nodes && state.rawNodes.length > 0) {
-    state.rawNodes.forEach(node => {
+    state.rawNodes.forEach((node) => {
       // Only render nodes that are currently weighted
       if (!activeKeys.includes(node.resource_type)) return;
-      
-      const res = RESOURCES.find(r => r.id === node.resource_type);
+
+      const res = RESOURCES.find((r) => r.id === node.resource_type);
       if (!res) return;
-      
+
       const pix = gameToPixel(node.x, node.y);
-      
+
       const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
       circle.setAttribute("cx", pix.x);
       circle.setAttribute("cy", pix.y);
@@ -329,17 +372,18 @@ function renderMapOverlay() {
       circle.setAttribute("stroke", "#06090e");
       circle.setAttribute("stroke-width", "0.5");
       circle.setAttribute("class", "node-marker");
-      
+
       // Node description tooltip content
-      const purityStr = node.purityMultiplier > 1.5 ? "Pure" : (node.purityMultiplier < 0.8 ? "Impure" : "Normal");
-      
+      const purityStr =
+        node.purityMultiplier > 1.5 ? "Pure" : node.purityMultiplier < 0.8 ? "Impure" : "Normal";
+
       // Build appropriate label based on resource category
-      const resObj = RESOURCES.find(r => r.id === node.resource_type);
+      const resObj = RESOURCES.find((r) => r.id === node.resource_type);
       let secondaryLabel;
       if (resObj) {
-        if (resObj.category === 'threat') {
+        if (resObj.category === "threat") {
           secondaryLabel = `<div class="purity" style="color: #ff6666;">⚠ Environmental Hazard</div>`;
-        } else if (resObj.category === 'collectible') {
+        } else if (resObj.category === "collectible") {
           secondaryLabel = `<div class="purity" style="color: ${resObj.color};">✦ Collectible</div>`;
         } else {
           secondaryLabel = `<div class="purity" style="color: ${resObj.color}">${purityStr} Yield</div>`;
@@ -347,58 +391,68 @@ function renderMapOverlay() {
       } else {
         secondaryLabel = `<div class="purity">${purityStr} Yield</div>`;
       }
-      
+
       const tooltipText = `
         <div class="title">${res.name}</div>
         ${secondaryLabel}
         ${node.obstructed ? '<div style="color: #ff3333; font-weight: bold; font-size: 0.7rem; margin-top: 4px;">OBSTRUCTED (Requires Nobelisks)</div>' : ""}
         <div class="coordinates">X: ${Math.round(node.x).toLocaleString()}, Y: ${Math.round(node.y).toLocaleString()}</div>
       `;
-      
+
       circle.addEventListener("mouseover", (e) => showTooltip(e, tooltipText));
       circle.addEventListener("mouseout", hideTooltip);
-      
+
       svg.appendChild(circle);
     });
   }
-  
-  // Draw World Border Polygon
-  const borderPoints = WORLD_BORDER_POLYGON.map(pt => {
-    const pix = gameToPixel(pt[0], pt[1]);
-    return `${pix.x},${pix.y}`;
-  }).join(" ");
-  
-  const borderPoly = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-  borderPoly.setAttribute("points", borderPoints);
-  borderPoly.setAttribute("fill", "none");
-  borderPoly.setAttribute("stroke", "rgba(255, 50, 50, 0.45)");
-  borderPoly.setAttribute("stroke-width", "2.0");
-  borderPoly.setAttribute("stroke-dasharray", "6 4");
-  borderPoly.style.pointerEvents = "none";
-  svg.appendChild(borderPoly);
-  
+
+  if (buildableLandPolygon.length > 2) {
+    // Draw practical buildable land polygon used by the optimizer.
+    const borderPoints = buildableLandPolygon
+      .map((pt) => {
+        const pix = gameToPixel(pt[0], pt[1]);
+        return `${pix.x},${pix.y}`;
+      })
+      .join(" ");
+
+    const borderPoly = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+    borderPoly.setAttribute("points", borderPoints);
+    borderPoly.setAttribute("fill", "rgba(0, 255, 170, 0.04)");
+    borderPoly.setAttribute("stroke", "rgba(0, 255, 170, 0.55)");
+    borderPoly.setAttribute("stroke-width", "2.0");
+    borderPoly.setAttribute("stroke-dasharray", "6 4");
+    borderPoly.style.pointerEvents = "none";
+    svg.appendChild(borderPoly);
+  }
+
   // 2. Draw Start Spawn Pod locations (S) and starting area circles
   const ignoreSpawns = state.config.ignoreSpawns;
-  
-  DEFAULT_SPAWNS.forEach(spawn => {
+
+  DEFAULT_SPAWNS.forEach((spawn) => {
     const pix = gameToPixel(spawn.x, spawn.y);
-    
+
     // Starting area radius is static and represents where the player spawns
     const boundaryRadiusPix = spawn.radius * 0.13653321;
-    
+
     const boundaryCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     boundaryCircle.setAttribute("cx", pix.x);
     boundaryCircle.setAttribute("cy", pix.y);
     boundaryCircle.setAttribute("r", boundaryRadiusPix);
-    boundaryCircle.setAttribute("fill", ignoreSpawns ? "rgba(255, 152, 0, 0.01)" : "rgba(255, 152, 0, 0.06)");
-    boundaryCircle.setAttribute("stroke", ignoreSpawns ? "rgba(255, 152, 0, 0.15)" : "rgba(255, 152, 0, 0.45)");
+    boundaryCircle.setAttribute(
+      "fill",
+      ignoreSpawns ? "rgba(255, 152, 0, 0.01)" : "rgba(255, 152, 0, 0.06)",
+    );
+    boundaryCircle.setAttribute(
+      "stroke",
+      ignoreSpawns ? "rgba(255, 152, 0, 0.15)" : "rgba(255, 152, 0, 0.45)",
+    );
     boundaryCircle.setAttribute("stroke-width", ignoreSpawns ? "1.0" : "2.0");
     if (ignoreSpawns) {
       boundaryCircle.setAttribute("stroke-dasharray", "4 4");
     }
     boundaryCircle.style.pointerEvents = "none";
     svg.appendChild(boundaryCircle);
-    
+
     // Circle base
     const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     circle.setAttribute("cx", pix.x);
@@ -408,7 +462,7 @@ function renderMapOverlay() {
     circle.setAttribute("stroke", "#ff9800");
     circle.setAttribute("stroke-width", "2");
     circle.setAttribute("class", "spawn-marker");
-    
+
     // Label letter 'S'
     const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
     text.setAttribute("x", pix.x);
@@ -419,36 +473,36 @@ function renderMapOverlay() {
     text.setAttribute("fill", "#ffffff");
     text.setAttribute("text-anchor", "middle");
     text.style.pointerEvents = "none";
-    
+
     text.textContent = "S";
-    
+
     const tooltipText = `
       <div class="title">Spawn Area: ${spawn.name}</div>
       <div style="font-size: 0.75rem; margin-bottom: 4px;">${spawn.description}</div>
       <div class="coordinates">X: ${spawn.x.toLocaleString()}, Y: ${spawn.y.toLocaleString()}</div>
     `;
-    
+
     circle.addEventListener("mouseover", (e) => showTooltip(e, tooltipText));
     circle.addEventListener("mouseout", hideTooltip);
-    
+
     svg.appendChild(circle);
     svg.appendChild(text);
   });
-  
+
   // 3. Draw Optimal Results crosshairs (Top 3)
   state.results.forEach((res, idx) => {
     const pix = gameToPixel(res.x, res.y);
     const isSelected = idx === state.selectedResultIdx;
-    
+
     const color = isSelected ? "#ff9800" : "#e0a900";
     const radius = isSelected ? 18 : 13;
     const strokeWidth = isSelected ? 2.5 : 1.5;
     const pulseClass = isSelected ? "pulsing-site" : "";
-    
+
     // Group wrapper
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
     g.setAttribute("class", `site-marker ${pulseClass}`);
-    
+
     // Outer dash circle
     const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     circle.setAttribute("cx", pix.x);
@@ -458,18 +512,17 @@ function renderMapOverlay() {
     circle.setAttribute("stroke", color);
     circle.setAttribute("stroke-width", strokeWidth);
     circle.setAttribute("stroke-dasharray", "4 2");
-    
+
     // Center point
     const center = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     center.setAttribute("cx", pix.x);
     center.setAttribute("cy", pix.y);
     center.setAttribute("r", "3");
     center.setAttribute("fill", color);
-    
+
     // Line ticks
-    const tickLen = isSelected ? 8 : 6;
     const gap = isSelected ? 6 : 4;
-    
+
     const lineL = document.createElementNS("http://www.w3.org/2000/svg", "line");
     lineL.setAttribute("x1", pix.x - radius - gap);
     lineL.setAttribute("y1", pix.y);
@@ -477,7 +530,7 @@ function renderMapOverlay() {
     lineL.setAttribute("y2", pix.y);
     lineL.setAttribute("stroke", color);
     lineL.setAttribute("stroke-width", strokeWidth);
-    
+
     const lineR = document.createElementNS("http://www.w3.org/2000/svg", "line");
     lineR.setAttribute("x1", pix.x + gap);
     lineR.setAttribute("y1", pix.y);
@@ -485,7 +538,7 @@ function renderMapOverlay() {
     lineR.setAttribute("y2", pix.y);
     lineR.setAttribute("stroke", color);
     lineR.setAttribute("stroke-width", strokeWidth);
-    
+
     const lineT = document.createElementNS("http://www.w3.org/2000/svg", "line");
     lineT.setAttribute("x1", pix.x);
     lineT.setAttribute("y1", pix.y - radius - gap);
@@ -493,7 +546,7 @@ function renderMapOverlay() {
     lineT.setAttribute("y2", pix.y - gap);
     lineT.setAttribute("stroke", color);
     lineT.setAttribute("stroke-width", strokeWidth);
-    
+
     const lineB = document.createElementNS("http://www.w3.org/2000/svg", "line");
     lineB.setAttribute("x1", pix.x);
     lineB.setAttribute("y1", pix.y + gap);
@@ -501,7 +554,7 @@ function renderMapOverlay() {
     lineB.setAttribute("y2", pix.y + radius + gap);
     lineB.setAttribute("stroke", color);
     lineB.setAttribute("stroke-width", strokeWidth);
-    
+
     // Text label rank
     const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
     label.setAttribute("x", pix.x);
@@ -513,7 +566,7 @@ function renderMapOverlay() {
     label.setAttribute("text-anchor", "middle");
     label.style.textShadow = "0 2px 4px rgba(0,0,0,0.8)";
     label.textContent = `#${idx + 1} SITE`;
-    
+
     g.appendChild(circle);
     g.appendChild(center);
     g.appendChild(lineL);
@@ -521,20 +574,13 @@ function renderMapOverlay() {
     g.appendChild(lineT);
     g.appendChild(lineB);
     g.appendChild(label);
-    
-    const tooltipText = `
-      <div class="title" style="color: ${color}">Site #${idx + 1} (Optimal)</div>
-      <div style="font-weight: 700; margin-bottom: 4px;">Score: <span style="color: var(--color-secondary);">${res.score.toFixed(4)}</span></div>
-      <div style="font-size: 0.75rem; margin-bottom: 4px;">Closest Biome: ${res.closest_spawn.name} (${Math.round(res.spawn_distance).toLocaleString()}m)</div>
-      <div class="coordinates">X: ${Math.round(res.x).toLocaleString()}, Y: ${Math.round(res.y).toLocaleString()}, Z: ${Math.round(res.z / 100.0)}m</div>
-    `;
-    
+
     // Add interactivity to the group
     g.style.pointerEvents = "auto";
     g.addEventListener("click", () => {
       selectResult(idx);
     });
-    
+
     svg.appendChild(g);
   });
 }
@@ -542,25 +588,26 @@ function renderMapOverlay() {
 // Render floating results list
 function renderResultsPanel() {
   els.resultsList.innerHTML = "";
-  
+
   if (state.results.length === 0) {
-    els.resultsList.innerHTML = '<div style="padding: 24px; color: var(--color-text-muted); text-align: center; font-size: 0.85rem; font-family: var(--font-display); letter-spacing: 1px;">CLICK "COMPUTE STARTING AREAS" TO RUN SIMULATION</div>';
+    els.resultsList.innerHTML =
+      '<div style="padding: 24px; color: var(--color-text-muted); text-align: center; font-size: 0.85rem; font-family: var(--font-display); letter-spacing: 1px;">CLICK "COMPUTE STARTING AREAS" TO RUN SIMULATION</div>';
     return;
   }
-  
+
   state.results.forEach((res, idx) => {
     const isSelected = idx === state.selectedResultIdx;
-    
+
     const card = document.createElement("div");
     card.className = `result-card ${isSelected ? "active" : ""}`;
-    
+
     // Compute local node summary
     const nodeItems = [];
     for (const label in res.local_nodes) {
       nodeItems.push(`${res.local_nodes[label]}x ${label}`);
     }
     const nodesSummary = nodeItems.slice(0, 4).join(", ") + (nodeItems.length > 4 ? "..." : "");
-    
+
     card.innerHTML = `
       <div class="result-card-title">
         <span class="rank-badge">#${idx + 1} OPTIMAL BASE</span>
@@ -573,11 +620,11 @@ function renderResultsPanel() {
         <strong>Nodes in range (${state.config.sigma}m):</strong> ${nodesSummary || "None"}
       </div>
     `;
-    
+
     card.addEventListener("click", () => {
       selectResult(idx);
     });
-    
+
     els.resultsList.appendChild(card);
   });
 }
@@ -594,11 +641,11 @@ function showTooltip(e, html) {
   const tooltip = els.mapTooltip;
   tooltip.innerHTML = html;
   tooltip.style.display = "block";
-  
+
   // Position relative to screen
   const x = e.clientX + 15;
   const y = e.clientY + 15;
-  
+
   tooltip.style.left = `${x}px`;
   tooltip.style.top = `${y}px`;
 }
@@ -610,13 +657,13 @@ function hideTooltip() {
 // Dynamic weight sliders renderer
 function renderWeightSliders() {
   els.weightsContainer.innerHTML = "";
-  
+
   const groups = {
     core: { title: "Production Resources", container: document.createElement("div") },
     collectible: { title: "Collectibles & Research", container: document.createElement("div") },
-    threat: { title: "Environmental Threats", container: document.createElement("div") }
+    threat: { title: "Environmental Threats", container: document.createElement("div") },
   };
-  
+
   for (const key in groups) {
     const section = document.createElement("div");
     section.style.marginBottom = "16px";
@@ -627,20 +674,20 @@ function renderWeightSliders() {
     title.style.textTransform = "uppercase";
     title.style.letterSpacing = "0.5px";
     title.textContent = groups[key].title;
-    
+
     section.appendChild(title);
     groups[key].container.className = "weights-list";
     section.appendChild(groups[key].container);
     els.weightsContainer.appendChild(section);
   }
-  
-  RESOURCES.forEach(res => {
-    const val = state.config.weights[res.id] !== undefined ? state.config.weights[res.id] : 0.00;
-    const isExcluded = (val === 0.00);
-    
+
+  RESOURCES.forEach((res) => {
+    const val = state.config.weights[res.id] !== undefined ? state.config.weights[res.id] : 0.0;
+    const isExcluded = val === 0.0;
+
     const row = document.createElement("div");
     row.className = "weight-row";
-    
+
     row.innerHTML = `
       <div class="weight-label" style="display: flex; align-items: center; gap: 8px;">
         <input type="checkbox" class="weight-toggle" id="toggle-${res.id}" ${!isExcluded ? "checked" : ""} style="cursor: pointer;">
@@ -652,12 +699,12 @@ function renderWeightSliders() {
         <span class="weight-val" id="val-${res.id}" style="${isExcluded ? "color: var(--color-text-dark);" : ""}">${val.toFixed(2)}</span>
       </div>
     `;
-    
+
     const checkbox = row.querySelector(".weight-toggle");
     const slider = row.querySelector("input[type='range']");
     const valSpan = row.querySelector(".weight-val");
     const nameSpan = row.querySelector(".weight-name");
-    
+
     checkbox.addEventListener("change", (e) => {
       const active = e.target.checked;
       if (active) {
@@ -665,7 +712,7 @@ function renderWeightSliders() {
         nameSpan.style.color = "";
         nameSpan.style.textDecoration = "";
         valSpan.style.color = "";
-        
+
         let v = parseFloat(slider.value);
         if (v === 0.0) {
           if (res.category === "threat") {
@@ -684,20 +731,20 @@ function renderWeightSliders() {
         nameSpan.style.color = "var(--color-text-dark)";
         nameSpan.style.textDecoration = "line-through";
         valSpan.style.color = "var(--color-text-dark)";
-        
+
         state.config.weights[res.id] = 0.0;
         valSpan.textContent = "0.00";
       }
       clearComputation();
     });
-    
+
     slider.addEventListener("input", (e) => {
       const v = parseFloat(e.target.value);
       state.config.weights[res.id] = v;
       valSpan.textContent = v.toFixed(2);
       clearComputation();
     });
-    
+
     groups[res.category].container.appendChild(row);
   });
 }
@@ -712,12 +759,12 @@ function clearComputation() {
 // Preset loader for Game Phase
 function applyPhasePreset(phaseId) {
   state.config.gamePhase = phaseId;
-  
+
   // Reset all weights to 0.0
-  RESOURCES.forEach(res => {
+  RESOURCES.forEach((res) => {
     state.config.weights[res.id] = 0.0;
   });
-  
+
   // Apply preset values
   const preset = PRESETS[phaseId];
   if (preset) {
@@ -725,13 +772,13 @@ function applyPhasePreset(phaseId) {
       state.config.weights[k] = preset[k];
     }
   }
-  
+
   // Apply presets (sigma and ignoreSpawns) dynamically from PRESETS_RAW
-  const rawPreset = PRESETS_RAW.find(p => p.id === phaseId);
+  const rawPreset = PRESETS_RAW.find((p) => p.id === phaseId);
   if (rawPreset) {
     state.config.ignoreSpawns = rawPreset.ignore_spawns;
     els.paramIgnoreSpawns.value = rawPreset.ignore_spawns ? "true" : "false";
-    
+
     state.config.sigma = rawPreset.sigma;
     els.paramSigma.value = rawPreset.sigma;
     els.valSigma.textContent = rawPreset.sigma;
@@ -743,10 +790,10 @@ function applyPhasePreset(phaseId) {
     els.paramSigma.value = 700;
     els.valSigma.textContent = 700;
   }
-  
+
   // Redraw weight sliders UI
   renderWeightSliders();
-  
+
   // Clear previous calculation to prompt manual recalculation
   clearComputation();
 }
@@ -754,20 +801,20 @@ function applyPhasePreset(phaseId) {
 // Setup Event Listeners
 function setupEvents() {
   // Preset Phase Buttons
-  document.querySelectorAll(".preset-btn").forEach(btn => {
-    btn.addEventListener("click", (e) => {
-      document.querySelectorAll(".preset-btn").forEach(b => b.classList.remove("active"));
+  document.querySelectorAll(".preset-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".preset-btn").forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
       applyPhasePreset(btn.dataset.phase);
     });
   });
-  
+
   // Map Type Toggle Buttons
-  document.querySelectorAll(".map-btn").forEach(btn => {
-    btn.addEventListener("click", (e) => {
-      document.querySelectorAll(".map-btn").forEach(b => b.classList.remove("active"));
+  document.querySelectorAll(".map-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".map-btn").forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
-      
+
       const type = btn.dataset.map;
       state.mapType = type;
       if (type === "game") {
@@ -777,7 +824,7 @@ function setupEvents() {
       }
     });
   });
-  
+
   // Parameter Inputs
   els.paramSigma.addEventListener("input", (e) => {
     const val = parseInt(e.target.value);
@@ -785,38 +832,38 @@ function setupEvents() {
     els.valSigma.textContent = val;
     clearComputation();
   });
-  
+
   els.paramUtility.addEventListener("change", (e) => {
     state.config.utilityFunc = e.target.value;
     clearComputation();
   });
-  
+
   els.paramDecay.addEventListener("change", (e) => {
     state.config.decayFunc = e.target.value;
     clearComputation();
   });
-  
+
   els.paramPurity.addEventListener("change", (e) => {
     state.config.purityOverride = e.target.value;
     clearComputation();
   });
-  
+
   els.paramStrategy.addEventListener("change", (e) => {
     state.config.strategy = e.target.value;
     clearComputation();
   });
-  
+
   els.paramIgnoreSpawns.addEventListener("change", (e) => {
     state.config.ignoreSpawns = e.target.value === "true";
     clearComputation();
   });
-  
+
   els.btnCompute.addEventListener("click", () => {
     runGlobalOptimization();
   });
-  
+
   // Layer Toggles removed. Nodes are always rendered.
-  
+
   // Document mousemove to drag/reposition tooltip smoothly
   document.addEventListener("mousemove", (e) => {
     if (els.mapTooltip.style.display === "block") {
@@ -830,93 +877,97 @@ function setupEvents() {
 function setupZoomAndPan() {
   const container = els.mapInnerContainer;
   const target = els.zoomContainer;
-  
+
   let scale = 1.0;
   let panX = 0;
   let panY = 0;
-  
+
   let isDragging = false;
   let startX = 0;
   let startY = 0;
-  
+
   function applyTransform() {
     target.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
   }
-  
+
   // Mouse Wheel Zoom
-  container.addEventListener("wheel", (e) => {
-    e.preventDefault();
-    
-    const rect = container.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
-    
-    // Position of cursor in target's coordinate space before zoom
-    const localX = (mx - panX) / scale;
-    const localY = (my - panY) / scale;
-    
-    const delta = -e.deltaY;
-    const zoomFactor = delta > 0 ? 1.15 : 1 / 1.15;
-    
-    let newScale = scale * zoomFactor;
-    newScale = Math.max(1.0, Math.min(20.0, newScale));
-    
-    if (newScale === 1.0) {
-      panX = 0;
-      panY = 0;
-      scale = 1.0;
-    } else {
-      scale = newScale;
-      panX = mx - localX * scale;
-      panY = my - localY * scale;
-      
-      // Limit panning boundaries so map doesn't drift completely out of view
-      const minPanX = rect.width * (1 - scale);
-      const minPanY = rect.height * (1 - scale);
-      panX = Math.min(0, Math.max(minPanX, panX));
-      panY = Math.min(0, Math.max(minPanY, panY));
-    }
-    
-    applyTransform();
-  }, { passive: false });
-  
+  container.addEventListener(
+    "wheel",
+    (e) => {
+      e.preventDefault();
+
+      const rect = container.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+
+      // Position of cursor in target's coordinate space before zoom
+      const localX = (mx - panX) / scale;
+      const localY = (my - panY) / scale;
+
+      const delta = -e.deltaY;
+      const zoomFactor = delta > 0 ? 1.15 : 1 / 1.15;
+
+      let newScale = scale * zoomFactor;
+      newScale = Math.max(1.0, Math.min(20.0, newScale));
+
+      if (newScale === 1.0) {
+        panX = 0;
+        panY = 0;
+        scale = 1.0;
+      } else {
+        scale = newScale;
+        panX = mx - localX * scale;
+        panY = my - localY * scale;
+
+        // Limit panning boundaries so map doesn't drift completely out of view
+        const minPanX = rect.width * (1 - scale);
+        const minPanY = rect.height * (1 - scale);
+        panX = Math.min(0, Math.max(minPanX, panX));
+        panY = Math.min(0, Math.max(minPanY, panY));
+      }
+
+      applyTransform();
+    },
+    { passive: false },
+  );
+
   // Drag to Pan
   container.addEventListener("mousedown", (e) => {
     // Only drag with left click
     if (e.button !== 0) return;
-    
+
     isDragging = true;
     container.style.cursor = "grabbing";
     startX = e.clientX - panX;
     startY = e.clientY - panY;
-    
+
     e.preventDefault(); // Prevent text/image selection
   });
-  
+
   document.addEventListener("mousemove", (e) => {
     if (!isDragging) return;
-    
+
     panX = e.clientX - startX;
     panY = e.clientY - startY;
-    
+
     const rect = container.getBoundingClientRect();
     const minPanX = rect.width * (1 - scale);
     const minPanY = rect.height * (1 - scale);
     panX = Math.min(0, Math.max(minPanX, panX));
     panY = Math.min(0, Math.max(minPanY, panY));
-    
+
     applyTransform();
   });
-  
+
   const endDrag = () => {
     if (!isDragging) return;
     isDragging = false;
     container.style.cursor = "grab";
   };
-  
+
   document.addEventListener("mouseup", endDrag);
   container.addEventListener("mouseleave", endDrag);
-  
+
   // Initially set grab cursor style
   container.style.cursor = "grab";
 }
@@ -925,7 +976,7 @@ function setupZoomAndPan() {
 async function init() {
   setupEvents();
   setupZoomAndPan();
-  
+
   // Show initial loading state
   els.mapLoading.innerHTML = `<span style="font-weight: 700; letter-spacing: 1px;">LOADING MAP DATA...</span>`;
   els.mapLoading.classList.add("active");
@@ -936,7 +987,7 @@ async function init() {
     if (!presetsRes.ok) throw new Error("Unable to contact backend FICSIT API server for presets.");
     const presetsData = await presetsRes.json();
     PRESETS_RAW = presetsData;
-    presetsData.forEach(p => {
+    presetsData.forEach((p) => {
       PRESETS[p.id] = p.weights;
     });
 
@@ -952,11 +1003,12 @@ async function init() {
     const res = await fetch("/data/complete-map-data.json");
     if (!res.ok) throw new Error("Network response error loading map dataset");
     const data = await res.json();
-    
+
     state.rawNodes = parseNodes(data);
-    
+    buildableLandPolygon = computeBuildableLandPolygon(state.rawNodes);
+
     console.log(`Database loaded: ${state.rawNodes.length} nodes parsed successfully.`);
-    
+
     // Draw initial resource nodes and biomes, leaving results cleared until computed
     clearComputation();
     els.mapLoading.classList.remove("active");

@@ -1,173 +1,195 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FICSIT Start Optimizer - Web Dashboard</title>
-  <!-- Google Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Inter:wght@300;400;500;700&display=swap" rel="stylesheet">
-  <!-- Stylesheet -->
-  <link rel="stylesheet" href="/src/index.css">
-</head>
-<body>
-  <div class="app-container">
-    
-    <!-- Top Header -->
-    <header class="app-header">
-      <div class="header-logo">
-        <div class="logo-icon"></div>
-        <div class="logo-text">
-          <h1>FICSIT INC.</h1>
-          <span>STARTING POSITION OPTIMIZER</span>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FICSIT Start Optimizer - Web Dashboard</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Inter:wght@300;400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="/src/index.css" />
+  </head>
+  <body>
+    <div class="app-container">
+      <!-- Top Header -->
+      <header class="app-header">
+        <div class="header-logo">
+          <div class="logo-icon"></div>
+          <div class="logo-text">
+            <h1>FICSIT INC.</h1>
+            <span>STARTING POSITION OPTIMIZER</span>
+          </div>
         </div>
+        <div class="header-controls">
+          <div class="preset-group">
+            <label>Game Phase Preset:</label>
+            <div class="preset-buttons">
+              <button class="btn preset-btn active" data-phase="phase1">Phase 1</button>
+              <button class="btn preset-btn" data-phase="phase2">Phase 2</button>
+              <button class="btn preset-btn" data-phase="phase3">Phase 3</button>
+              <button class="btn preset-btn" data-phase="phase4">Phase 4</button>
+              <button class="btn preset-btn" data-phase="phase5">Phase 5</button>
+            </div>
+          </div>
+          <div class="divider"></div>
+          <div class="map-toggle-group">
+            <label>Map Layer:</label>
+            <div class="toggle-buttons">
+              <button class="btn map-btn" data-map="game">In-Game Map</button>
+              <button class="btn map-btn active" data-map="realistic">Satellite Map</button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div class="main-layout">
+        <!-- Left Sidebar: Configuration -->
+        <aside class="sidebar">
+          <div class="sidebar-section">
+            <h2>OPTIMIZATION PARAMS</h2>
+
+            <div class="control-row">
+              <div class="control-item">
+                <label
+                  for="param-sigma"
+                  title="Logistical walking radius in meters (effective search scope)"
+                >
+                  Walking Radius (σ): <span id="val-sigma">700</span>m
+                </label>
+                <input type="range" id="param-sigma" min="100" max="3000" step="50" value="700" />
+              </div>
+            </div>
+
+            <div class="control-grid-2">
+              <div class="control-item">
+                <label for="param-utility">Utility Model</label>
+                <select id="param-utility">
+                  <option value="cobb_douglas" selected>Cobb-Douglas</option>
+                  <option value="leontief">Leontief</option>
+                  <option value="linear">Linear</option>
+                </select>
+              </div>
+
+              <div class="control-item">
+                <label for="param-decay">Decay Model</label>
+                <select id="param-decay">
+                  <option value="gaussian" selected>Gaussian</option>
+                  <option value="exponential">Exponential</option>
+                  <option value="power_law">Power-Law</option>
+                  <option value="linear">Linear</option>
+                  <option value="logistic">Logistic</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="control-grid-2">
+              <div class="control-item">
+                <label for="param-purity">Purity Override</label>
+                <select id="param-purity">
+                  <option value="default" selected>Default</option>
+                  <option value="impure">All Impure</option>
+                  <option value="normal">All Normal</option>
+                  <option value="pure">All Pure</option>
+                </select>
+              </div>
+
+              <div class="control-item">
+                <label for="param-strategy">Search Strategy</label>
+                <select id="param-strategy">
+                  <option value="hybrid" selected>Hybrid</option>
+                  <option value="fast">Fast</option>
+                  <option value="slow">Slow</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="control-row">
+              <div class="control-item">
+                <label
+                  for="param-ignore-spawns"
+                  title="Ignore distances to official starting spawn locations"
+                >
+                  Ignore Spawns
+                </label>
+                <select id="param-ignore-spawns">
+                  <option value="false" selected>Constrained (No)</option>
+                  <option value="true">Ignore (Yes)</option>
+                </select>
+              </div>
+            </div>
+
+            <button id="btn-compute" class="btn btn-compute">Compute Starting Areas</button>
+          </div>
+
+          <div class="sidebar-section scrollable-section">
+            <h2>RESOURCE WEIGHTS <span class="subtitle">(0.01 precision)</span></h2>
+            <div id="weights-container" class="weights-list">
+              <!-- Populated via Javascript -->
+            </div>
+          </div>
+        </aside>
+
+        <!-- Center/Right Main: Map & Overlay -->
+        <main class="map-workspace">
+          <div class="map-container-wrapper">
+            <div class="map-inner-container" id="map-inner-container">
+              <div
+                id="zoom-container"
+                style="
+                  position: absolute;
+                  top: 0;
+                  left: 0;
+                  width: 100%;
+                  height: 100%;
+                  transform-origin: 0 0;
+                  will-change: transform;
+                "
+              >
+                <!-- Background Map Image -->
+                <img
+                  id="map-img"
+                  src="/src/assets/realistic_map.png"
+                  alt="Satisfactory Map"
+                  class="map-image-layer"
+                  draggable="false"
+                />
+
+                <!-- SVG Markers Layer -->
+                <svg id="svg-overlay" class="svg-overlay-layer">
+                  <!-- Grid bounds indicator if needed -->
+                </svg>
+              </div>
+
+              <!-- Loading overlay -->
+              <div class="map-loading" id="map-loading">
+                <div class="spinner"></div>
+                <span>COMPUTING OPTIMAL SITES...</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Floating Quick Settings / Results Overlay -->
+          <div class="results-overlay">
+            <div class="panel-header">
+              <h3>OPTIMAL SITES (TOP 3)</h3>
+            </div>
+            <div class="results-list" id="results-list">
+              <!-- Populated via Javascript -->
+            </div>
+          </div>
+        </main>
       </div>
-      <div class="header-controls">
-        <div class="preset-group">
-          <label>Game Phase Preset:</label>
-          <div class="preset-buttons">
-            <button class="btn preset-btn active" data-phase="phase1">Phase 1</button>
-            <button class="btn preset-btn" data-phase="phase2">Phase 2</button>
-            <button class="btn preset-btn" data-phase="phase3">Phase 3</button>
-            <button class="btn preset-btn" data-phase="phase4">Phase 4</button>
-            <button class="btn preset-btn" data-phase="phase5">Phase 5</button>
-          </div>
-        </div>
-        <div class="divider"></div>
-        <div class="map-toggle-group">
-          <label>Map Layer:</label>
-          <div class="toggle-buttons">
-            <button class="btn map-btn" data-map="game">In-Game Map</button>
-            <button class="btn map-btn active" data-map="realistic">Satellite Map</button>
-          </div>
-        </div>
-      </div>
-    </header>
-
-    <div class="main-layout">
-      <!-- Left Sidebar: Configuration -->
-      <aside class="sidebar">
-        <div class="sidebar-section">
-          <h2>OPTIMIZATION PARAMS</h2>
-          
-          <div class="control-row">
-            <div class="control-item">
-              <label for="param-sigma" title="Logistical walking radius in meters (effective search scope)">
-                Walking Radius (σ): <span id="val-sigma">700</span>m
-              </label>
-              <input type="range" id="param-sigma" min="100" max="3000" step="50" value="700">
-            </div>
-          </div>
-
-          <div class="control-grid-2">
-            <div class="control-item">
-              <label for="param-utility">Utility Model</label>
-              <select id="param-utility">
-                <option value="cobb_douglas" selected>Cobb-Douglas</option>
-                <option value="leontief">Leontief</option>
-                <option value="linear">Linear</option>
-              </select>
-            </div>
-            
-            <div class="control-item">
-              <label for="param-decay">Decay Model</label>
-              <select id="param-decay">
-                <option value="gaussian" selected>Gaussian</option>
-                <option value="exponential">Exponential</option>
-                <option value="power_law">Power-Law</option>
-                <option value="linear">Linear</option>
-                <option value="logistic">Logistic</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="control-grid-2">
-            <div class="control-item">
-              <label for="param-purity">Purity Override</label>
-              <select id="param-purity">
-                <option value="default" selected>Default</option>
-                <option value="impure">All Impure</option>
-                <option value="normal">All Normal</option>
-                <option value="pure">All Pure</option>
-              </select>
-            </div>
-            
-            <div class="control-item">
-              <label for="param-strategy">Search Strategy</label>
-              <select id="param-strategy">
-                <option value="hybrid" selected>Hybrid</option>
-                <option value="fast">Fast</option>
-                <option value="slow">Slow</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="control-row">
-            <div class="control-item">
-              <label for="param-ignore-spawns" title="Ignore distances to official starting spawn locations">
-                Ignore Spawns
-              </label>
-              <select id="param-ignore-spawns">
-                <option value="false" selected>Constrained (No)</option>
-                <option value="true">Ignore (Yes)</option>
-              </select>
-            </div>
-          </div>
-
-          <button id="btn-compute" class="btn btn-compute">Compute Starting Areas</button>
-        </div>
-
-        <div class="sidebar-section scrollable-section">
-          <h2>RESOURCE WEIGHTS <span class="subtitle">(0.01 precision)</span></h2>
-          <div id="weights-container" class="weights-list">
-            <!-- Populated via Javascript -->
-          </div>
-        </div>
-      </aside>
-
-      <!-- Center/Right Main: Map & Overlay -->
-      <main class="map-workspace">
-        <div class="map-container-wrapper">
-          <div class="map-inner-container" id="map-inner-container">
-            <div id="zoom-container" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform-origin: 0 0; will-change: transform;">
-              <!-- Background Map Image -->
-              <img id="map-img" src="/src/assets/realistic_map.png" alt="Satisfactory Map" class="map-image-layer" draggable="false" />
-              
-
-              
-              <!-- SVG Markers Layer -->
-              <svg id="svg-overlay" class="svg-overlay-layer">
-                <!-- Grid bounds indicator if needed -->
-              </svg>
-            </div>
-
-            <!-- Loading overlay -->
-            <div class="map-loading" id="map-loading">
-              <div class="spinner"></div>
-              <span>COMPUTING OPTIMAL SITES...</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Floating Quick Settings / Results Overlay -->
-        <div class="results-overlay">
-          <div class="panel-header">
-            <h3>OPTIMAL SITES (TOP 3)</h3>
-
-          </div>
-          <div class="results-list" id="results-list">
-            <!-- Populated via Javascript -->
-          </div>
-        </div>
-      </main>
     </div>
-  </div>
 
-  <!-- Custom Tooltip -->
-  <div id="map-tooltip" class="map-tooltip" style="display: none;"></div>
+    <!-- Custom Tooltip -->
+    <div id="map-tooltip" class="map-tooltip" style="display: none"></div>
 
-  <!-- Script -->
-  <script type="module" src="/src/app.js"></script>
-</body>
+    <!-- Script -->
+    <script type="module" src="/src/app.js"></script>
+  </body>
 </html>
