@@ -29,6 +29,7 @@ pub struct OptimizeRequest {
     pub purity_override: String,
     pub strategy: String,
     pub game_phase: String,
+    pub sigma: f64,
     pub ignore_spawns: bool,
     /// Resource weights as a map of resource_id → weight.
     /// Values of 0.0 are ignored in the calculation.
@@ -118,22 +119,23 @@ fn apply_collectibles_weights(weights: &mut HashMap<String, f64>) {
 // ---------------------------------------------------------------------------
 
 fn build_presets() -> Vec<PresetResponse> {
-    let phases: &[(&str, &str, bool)] = &[
-        ("phase1", "Phase 1 — Early Game (Tiers 1-2)", false),
-        ("phase2", "Phase 2 — Steel & Coal (Tiers 3-4)", false),
-        ("phase3", "Phase 3 — Oil & Quartz (Tiers 5-6)", false),
-        ("phase4", "Phase 4 — Aluminum & Nuclear (Tiers 7-8)", true),
-        ("phase5", "Phase 5 — Quantum (Tier 9)", true),
+    let phases: &[(&str, &str, bool, f64)] = &[
+        ("phase1", "Phase 1 — Early Game (Tiers 1-2)", false, 200.0),
+        ("phase2", "Phase 2 — Steel & Coal (Tiers 3-4)", false, 300.0),
+        ("phase3", "Phase 3 — Oil & Quartz (Tiers 5-6)", false, 400.0),
+        ("phase4", "Phase 4 — Aluminum & Nuclear (Tiers 7-8)", true, 600.0),
+        ("phase5", "Phase 5 — Quantum (Tier 9)", true, 800.0),
         (
             "collectibles",
             "Collectibles — Slugs, Artifacts & Hard Drives",
             true,
+            1000.0,
         ),
     ];
 
     phases
         .iter()
-        .map(|(id, name, ignore_spawns)| {
+        .map(|(id, name, ignore_spawns, sigma)| {
             let mut weights = HashMap::<String, f64>::new();
 
             if *id == "collectibles" {
@@ -152,7 +154,7 @@ fn build_presets() -> Vec<PresetResponse> {
             PresetResponse {
                 id: id.to_string(),
                 name: name.to_string(),
-                sigma: 700.0,
+                sigma: *sigma,
                 ignore_spawns: *ignore_spawns,
                 weights,
             }
@@ -181,7 +183,7 @@ async fn post_optimize(
 
     // Build OptimizerConfig from request
     let mut config = OptimizerConfig {
-        sigma: 700.0,
+        sigma: req.sigma.clamp(50.0, 1000.0),
         weights: req.weights.clone(),
         purity_override: parse_purity(&req.purity_override),
         strategy: parse_strategy(&req.strategy),

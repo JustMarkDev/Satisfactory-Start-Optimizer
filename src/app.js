@@ -10,6 +10,15 @@ let PRESETS = {};
 let PRESETS_RAW = [];
 let buildableLandPolygon = [];
 
+const PRESET_SIGMAS = {
+  phase1: 200,
+  phase2: 300,
+  phase3: 400,
+  phase4: 600,
+  phase5: 800,
+  collectibles: 1000,
+};
+
 // Resource Registry and Stylings
 const RESOURCES = [
   // Core Resources
@@ -49,7 +58,7 @@ const RESOURCES = [
 const state = {
   rawNodes: [],
   config: {
-    sigma: 700,
+    sigma: 200,
     utilityFunc: "cobb_douglas",
     decayFunc: "gaussian",
     purityOverride: "default",
@@ -81,6 +90,8 @@ const els = {
   paramDecay: document.getElementById("param-decay"),
   paramPurity: document.getElementById("param-purity"),
   paramStrategy: document.getElementById("param-strategy"),
+  paramSigma: document.getElementById("param-sigma"),
+  paramSigmaValue: document.getElementById("param-sigma-value"),
   paramIgnoreSpawns: document.getElementById("param-ignore-spawns"),
   btnCompute: document.getElementById("btn-compute"),
 };
@@ -322,6 +333,7 @@ async function runGlobalOptimization() {
       purity_override: config.purityOverride,
       strategy: config.strategy,
       game_phase: config.gamePhase,
+      sigma: config.sigma,
       ignore_spawns: config.ignoreSpawns,
       weights: Object.fromEntries(Object.entries(config.weights).filter(([_, v]) => v !== 0)),
     };
@@ -770,6 +782,13 @@ function clearComputation() {
   renderResultsPanel();
 }
 
+function setWalkingRadius(value) {
+  const sigma = Math.max(50, Math.min(1000, Math.round(Number(value) / 50) * 50));
+  state.config.sigma = sigma;
+  els.paramSigma.value = String(sigma);
+  els.paramSigmaValue.textContent = `${sigma}m`;
+}
+
 // Preset loader for Game Phase
 function applyPhasePreset(phaseId) {
   state.config.gamePhase = phaseId;
@@ -787,7 +806,7 @@ function applyPhasePreset(phaseId) {
     }
   }
 
-  // Apply preset spawn behavior dynamically; walking radius stays fixed at 700m.
+  // Apply preset spawn behavior and walking radius dynamically.
   const rawPreset = PRESETS_RAW.find((p) => p.id === phaseId);
   if (rawPreset) {
     state.config.ignoreSpawns = rawPreset.ignore_spawns;
@@ -797,7 +816,7 @@ function applyPhasePreset(phaseId) {
     state.config.ignoreSpawns = false;
     els.paramIgnoreSpawns.value = "false";
   }
-  state.config.sigma = 700;
+  setWalkingRadius(PRESET_SIGMAS[phaseId] ?? rawPreset?.sigma ?? 200);
 
   // Redraw weight sliders UI
   renderWeightSliders();
@@ -853,6 +872,13 @@ function setupEvents() {
     state.config.strategy = e.target.value;
     clearComputation();
   });
+
+  const onSigmaInput = (e) => {
+    setWalkingRadius(e.target.value);
+    clearComputation();
+  };
+  els.paramSigma.addEventListener("input", onSigmaInput);
+  els.paramSigma.addEventListener("change", onSigmaInput);
 
   els.paramIgnoreSpawns.addEventListener("change", (e) => {
     state.config.ignoreSpawns = e.target.value === "true";
