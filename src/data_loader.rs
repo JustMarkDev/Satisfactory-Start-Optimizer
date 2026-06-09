@@ -124,7 +124,8 @@ pub fn load_nodes_from_str(s: &str) -> Result<Vec<ResourceNode>, Box<dyn std::er
                                             }
                                         };
 
-                                        let purity_str = marker.purity.as_deref().unwrap_or("RP_Normal");
+                                        let purity_str =
+                                            marker.purity.as_deref().unwrap_or("RP_Normal");
                                         let purity = Purity::from_str(purity_str);
 
                                         nodes.push(ResourceNode {
@@ -138,7 +139,10 @@ pub fn load_nodes_from_str(s: &str) -> Result<Vec<ResourceNode>, Box<dyn std::er
                                     }
                                 }
                                 Err(e) => {
-                                    eprintln!("Error parsing markers for item {}: {:?}", item.layer_id, e);
+                                    eprintln!(
+                                        "Error parsing markers for item {}: {:?}",
+                                        item.layer_id, e
+                                    );
                                 }
                             }
                         }

@@ -1,7 +1,7 @@
 // FICSIT Starting Position Optimizer
 // Web Dashboard Logic
 
-const LAND_MASK_SECTORS = 48;
+const LAND_MASK_SECTORS = 128;
 const LAND_MASK_BUFFER_CM = 22000;
 const MAP_PIXEL_TO_CM = 1 / 0.0013653321;
 
@@ -106,27 +106,44 @@ function computeBuildableLandPolygon(nodes) {
   center.x /= nodes.length;
   center.y /= nodes.length;
 
-  const sectors = Array.from({ length: LAND_MASK_SECTORS }, () => null);
+  const radii = Array.from({ length: LAND_MASK_SECTORS }, () => 0);
   nodes.forEach((node) => {
     const dx = node.x - center.x;
     const dy = node.y - center.y;
-    const distSq = dx * dx + dy * dy;
-    if (distSq === 0) return;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist === 0) return;
 
     const angle = Math.atan2(dy, dx);
     const normalized = (angle + Math.PI) / (2 * Math.PI);
     const idx = Math.min(LAND_MASK_SECTORS - 1, Math.floor(normalized * LAND_MASK_SECTORS));
-    if (!sectors[idx] || distSq > sectors[idx].distSq) {
-      sectors[idx] = { x: node.x, y: node.y, distSq };
-    }
+    radii[idx] = Math.max(radii[idx], dist);
   });
 
+  const originalRadii = [...radii];
+  for (let i = 0; i < LAND_MASK_SECTORS; i += 1) {
+    if (radii[i] > 0) continue;
+    let prev = (i + LAND_MASK_SECTORS - 1) % LAND_MASK_SECTORS;
+    while (radii[prev] === 0) prev = (prev + LAND_MASK_SECTORS - 1) % LAND_MASK_SECTORS;
+    let next = (i + 1) % LAND_MASK_SECTORS;
+    while (radii[next] === 0) next = (next + 1) % LAND_MASK_SECTORS;
+    radii[i] = Math.max(radii[prev], radii[next]);
+  }
+
+  for (let pass = 0; pass < 2; pass += 1) {
+    const prev = [...radii];
+    for (let i = 0; i < LAND_MASK_SECTORS; i += 1) {
+      const left = prev[(i + LAND_MASK_SECTORS - 1) % LAND_MASK_SECTORS];
+      const right = prev[(i + 1) % LAND_MASK_SECTORS];
+      radii[i] = Math.max(originalRadii[i], (left + 2 * prev[i] + right) / 4);
+    }
+  }
+
   const buffer = Math.max(LAND_MASK_BUFFER_CM, 30 * MAP_PIXEL_TO_CM);
-  return sectors.filter(Boolean).map((point) => {
-    const dx = point.x - center.x;
-    const dy = point.y - center.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    return [point.x + (dx / dist) * buffer, point.y + (dy / dist) * buffer];
+  const angularMargin = 1 / Math.cos(Math.PI / LAND_MASK_SECTORS);
+  return radii.map((radius, i) => {
+    const angle = -Math.PI + ((i + 0.5) * 2 * Math.PI) / LAND_MASK_SECTORS;
+    const outRadius = radius * angularMargin + buffer;
+    return [center.x + Math.cos(angle) * outRadius, center.y + Math.sin(angle) * outRadius];
   });
 }
 

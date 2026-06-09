@@ -36,6 +36,7 @@ pub enum PurityOverride {
 }
 
 impl PurityOverride {
+    #[allow(dead_code)]
     pub fn to_str(self) -> &'static str {
         match self {
             PurityOverride::Default => "Default (Database)",
@@ -275,6 +276,7 @@ pub enum SearchStrategy {
 }
 
 impl SearchStrategy {
+    #[allow(dead_code)]
     pub fn to_str(self) -> &'static str {
         match self {
             SearchStrategy::Hybrid => "Hybrid (recommended)",

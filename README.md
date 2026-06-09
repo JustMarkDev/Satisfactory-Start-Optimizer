@@ -8,7 +8,7 @@ A high-performance command-line utility built in Rust to calculate the mathemati
 
 1. **Customizable Distance Decay**: Models player traversal logistics. The value of a node decreases as distance grows, using Gaussian, Exponential, Power-Law (Gravity), or Linear decay models.
 2. **Flexible Utility Scoring**: Combines yields of multiple resource types using Cobb-Douglas (Multiplicative Balance), Leontief (Min-Bottleneck), or Linear Additive models.
-3. **Dynamic Resource Support**: Supports _any_ resource type (Iron, Copper, Limestone, Coal, Caterium, Oil, Bauxite, Sulfur, SAM, etc.) dynamically. You can add weights for any resource type in the game from the CLI or TUI.
+3. **Dynamic Resource Support**: Supports _any_ resource type (Iron, Copper, Limestone, Coal, Caterium, Oil, Bauxite, Sulfur, SAM, etc.) dynamically. You can add weights for any resource type in the game from the CLI or web dashboard.
 4. **Parallelized Search Engine**: Uses `rayon` to perform a global 2D grid search across the entire map bounds parallelized over your CPU threads, followed by a local gradient ascent (hill climbing) refinement down to centimeter precision.
 
 ---
@@ -125,22 +125,20 @@ The web dashboard provides an interactive satellite/in-game map overlay with rea
    bun install
    ```
 
-2. **Start the Rust API Server**:
-
-   ```bash
-   bun run server
-   ```
-
-   This spins up the compiled Rust backend server listening on `http://127.0.0.1:8080`.
-
-3. **Start the Vite+ Frontend Dev Server**:
-   In another terminal, run:
+2. **Start backend and frontend with one command**:
 
    ```bash
    bun run dev
    ```
 
-   This starts Vite+ on `http://127.0.0.1:3000` (and automatically opens your browser). It proxies all API calls (`/api/*`) to the Rust backend.
+   This starts the Rust API server on `http://127.0.0.1:8080` and the Vite+ web UI on `http://127.0.0.1:3000` (with automatic browser opening). The UI proxies all API calls (`/api/*`) to the Rust backend.
+
+3. **Optional commands**:
+
+   ```bash
+   bun run server # backend only
+   bun run ui     # frontend only
+   ```
 
 4. **Optional Vite+ maintenance commands**:
    ```bash
@@ -152,25 +150,7 @@ The web dashboard provides an interactive satellite/in-game map overlay with rea
 
 ---
 
-### 2. Launching the Interactive TUI Dashboard
-
-If you prefer a retro terminal interface, you can run the application directly in your terminal without starting the web servers:
-
-```bash
-cargo run --release
-```
-
-**TUI Controls:**
-
-- **Up/Down Arrows**: Navigate between Preset, Purity, Search Strategy, Utility Function, Distance Decay, Radius, the configurable weights checklist, and the RUN button.
-- **Left/Right Arrows**: Cycle presets, cycle purity modes (Default, Impure, Normal, Pure), cycle search strategies, cycle utility functions, cycle distance decays, adjust Radius, or scale the dynamic weights of active resource parameters in steps of $\pm 0.1$.
-- **Space**: Toggle the checkbox next to resource parameters to enable or disable them in the utility calculation.
-- **Enter**: Execute the optimization solver when focused on `[ RUN OPTIMIZATION ENGINE ]`.
-- **Q or Esc**: Exit the alternate screen cleanly and restore the terminal configuration.
-
----
-
-### 3. Running in Scriptable JSON Mode (`--json`)
+### 2. Running in Scriptable JSON Mode (`--json`)
 
 If you want to integrate the optimizer with automated scripting pipelines or print raw serialized outputs, use the `--json` flag:
 

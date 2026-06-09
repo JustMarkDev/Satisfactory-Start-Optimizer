@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vp dev",
+    "dev": "bun scripts/dev.js",
+    "ui": "vp dev",
     "server": "vp run server:raw",
     "server:raw": "cargo run --release -- --server 8080",
     "build": "vp build",

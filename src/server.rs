@@ -6,14 +6,14 @@
 //!   POST /api/optimize       → accepts OptimizerRequest JSON, returns top-3 OptimizationResult[]
 
 use actix_cors::Cors;
-use actix_web::{web, App, HttpResponse, HttpServer, Responder};
+use actix_web::{App, HttpResponse, HttpServer, Responder, web};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::models::{
-    DistanceDecay, GamePhase, OptimizerConfig, PurityOverride, SearchStrategy, UtilityFunction,
-    DEFAULT_SPAWNS,
+    DEFAULT_SPAWNS, DistanceDecay, GamePhase, OptimizerConfig, PurityOverride, SearchStrategy,
+    UtilityFunction,
 };
 use crate::optimizer;
 
@@ -108,9 +108,9 @@ fn apply_collectibles_weights(weights: &mut HashMap<String, f64>) {
     weights.insert("mercer".to_string(), 1.0);
     weights.insert("somersloop".to_string(), 1.0);
     weights.insert("harddrive".to_string(), 1.5);
-    weights.insert("paleberry".to_string(), 0.1);
-    weights.insert("berylnut".to_string(), 0.1);
-    weights.insert("baconagaric".to_string(), 0.1);
+    weights.insert("paleberry".to_string(), 0.0);
+    weights.insert("berylnut".to_string(), 0.0);
+    weights.insert("baconagaric".to_string(), 0.0);
 }
 
 // ---------------------------------------------------------------------------
@@ -124,7 +124,11 @@ fn build_presets() -> Vec<PresetResponse> {
         ("phase3", "Phase 3 — Oil & Quartz (Tiers 5-6)", false),
         ("phase4", "Phase 4 — Aluminum & Nuclear (Tiers 7-8)", true),
         ("phase5", "Phase 5 — Quantum (Tier 9)", true),
-        ("collectibles", "Collectibles — Slugs, Artifacts & Hard Drives", true),
+        (
+            "collectibles",
+            "Collectibles — Slugs, Artifacts & Hard Drives",
+            true,
+        ),
     ];
 
     phases
@@ -141,11 +145,9 @@ fn build_presets() -> Vec<PresetResponse> {
             }
 
             // Force berylnut / paleberry / baconagaric off by default
-            if *id != "collectibles" {
-                weights.insert("paleberry".to_string(), 0.0);
-                weights.insert("berylnut".to_string(), 0.0);
-                weights.insert("baconagaric".to_string(), 0.0);
-            }
+            weights.insert("paleberry".to_string(), 0.0);
+            weights.insert("berylnut".to_string(), 0.0);
+            weights.insert("baconagaric".to_string(), 0.0);
 
             PresetResponse {
                 id: id.to_string(),
@@ -219,10 +221,7 @@ async fn get_health() -> impl Responder {
 #[actix_web::main]
 pub async fn run_server(port: u16) -> std::io::Result<()> {
     let nodes = crate::data_loader::load_default_nodes();
-    println!(
-        "FICSIT API Server — loaded {} resource nodes",
-        nodes.len()
-    );
+    println!("FICSIT API Server — loaded {} resource nodes", nodes.len());
     println!("Listening on http://127.0.0.1:{}", port);
     println!("  POST /api/optimize  — run optimization");
     println!("  GET  /api/presets   — get phase presets");
@@ -242,8 +241,8 @@ pub async fn run_server(port: u16) -> std::io::Result<()> {
                 web::JsonConfig::default()
                     .limit(1024 * 1024) // 1 MB max request body
                     .error_handler(|err, _req| {
-                        let response = HttpResponse::BadRequest()
-                            .body(format!("JSON parse error: {}", err));
+                        let response =
+                            HttpResponse::BadRequest().body(format!("JSON parse error: {}", err));
                         actix_web::error::InternalError::from_response(err, response).into()
                     }),
             )
@@ -269,8 +268,22 @@ mod tests {
             .iter()
             .find(|p| p.id == "collectibles")
             .expect("collectibles preset missing");
-        assert!(collectibles.weights.get("harddrive").copied().unwrap_or(0.0) > 0.0);
-        assert!(collectibles.weights.get("purpleslug").copied().unwrap_or(0.0) > 0.0);
+        assert!(
+            collectibles
+                .weights
+                .get("harddrive")
+                .copied()
+                .unwrap_or(0.0)
+                > 0.0
+        );
+        assert!(
+            collectibles
+                .weights
+                .get("purpleslug")
+                .copied()
+                .unwrap_or(0.0)
+                > 0.0
+        );
 
         for phase_id in ["phase4", "phase5"] {
             let preset = presets

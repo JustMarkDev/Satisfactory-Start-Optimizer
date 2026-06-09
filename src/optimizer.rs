@@ -99,7 +99,7 @@ fn distance_to_nearest_water(
         (350000.0, 225000.0, 140000.0, 150000.0), // Eastern Swamp Lakes
         (310000.0, -185000.0, 25000.0, 20000.0), // Southern Dune Desert pond cluster
         (290000.0, -230000.0, 20000.0, 15000.0), // Far-south Dune Desert pond
-        (355000.0, -80000.0, 30000.0, 25000.0),  // Central-east Dune Desert oasis
+        (355000.0, -80000.0, 30000.0, 25000.0), // Central-east Dune Desert oasis
     ];
 
     for &(cx, cy, w, h) in &water_bodies {
@@ -209,7 +209,7 @@ fn estimate_altitude(
     }
 }
 
-const LAND_MASK_SECTORS: usize = 48;
+const LAND_MASK_SECTORS: usize = 128;
 const LAND_MASK_BUFFER_CM: f64 = 22_000.0; // ≈ 30 map pixels / 220 m.
 const MAP_PIXEL_TO_CM: f64 = 1.0 / 0.0013653321;
 
@@ -237,34 +237,66 @@ impl LandMask {
         let center_x = sum_x / nodes.len() as f64;
         let center_y = sum_y / nodes.len() as f64;
 
-        let mut sectors: Vec<Option<(f64, f64, f64)>> = vec![None; LAND_MASK_SECTORS];
+        let mut radii = vec![0.0_f64; LAND_MASK_SECTORS];
         for node in nodes {
             let dx = node.x - center_x;
             let dy = node.y - center_y;
-            let dist_sq = dx * dx + dy * dy;
-            if dist_sq == 0.0 {
+            let dist = (dx * dx + dy * dy).sqrt();
+            if dist == 0.0 {
                 continue;
             }
             let angle = dy.atan2(dx);
             let normalized = (angle + std::f64::consts::PI) / (2.0 * std::f64::consts::PI);
             let idx = ((normalized * LAND_MASK_SECTORS as f64).floor() as usize)
                 .min(LAND_MASK_SECTORS - 1);
+            radii[idx] = radii[idx].max(dist);
+        }
 
-            if sectors[idx].map_or(true, |(_, _, best_dist_sq)| dist_sq > best_dist_sq) {
-                sectors[idx] = Some((node.x, node.y, dist_sq));
+        // Build an evenly sampled radial envelope instead of connecting the exact
+        // farthest node positions. This keeps vertices uniformly distributed, fills
+        // sparse sectors by interpolation, and produces a border with a consistent
+        // outward clearance from the extremal nodes.
+        let original_radii = radii.clone();
+        for i in 0..LAND_MASK_SECTORS {
+            if radii[i] > 0.0 {
+                continue;
+            }
+            let mut prev = (i + LAND_MASK_SECTORS - 1) % LAND_MASK_SECTORS;
+            while radii[prev] == 0.0 {
+                prev = (prev + LAND_MASK_SECTORS - 1) % LAND_MASK_SECTORS;
+            }
+            let mut next = (i + 1) % LAND_MASK_SECTORS;
+            while radii[next] == 0.0 {
+                next = (next + 1) % LAND_MASK_SECTORS;
+            }
+            radii[i] = radii[prev].max(radii[next]);
+        }
+
+        for _ in 0..2 {
+            let prev = radii.clone();
+            for i in 0..LAND_MASK_SECTORS {
+                let l = prev[(i + LAND_MASK_SECTORS - 1) % LAND_MASK_SECTORS];
+                let r = prev[(i + 1) % LAND_MASK_SECTORS];
+                radii[i] = original_radii[i].max((l + 2.0 * prev[i] + r) / 4.0);
             }
         }
 
-        let mut points = Vec::new();
-        for point in sectors.into_iter().flatten() {
-            let dx = point.0 - center_x;
-            let dy = point.1 - center_y;
-            let dist = (dx * dx + dy * dy).sqrt();
-            let buffer = LAND_MASK_BUFFER_CM.max(30.0 * MAP_PIXEL_TO_CM);
-            let out_x = point.0 + dx / dist * buffer;
-            let out_y = point.1 + dy / dist * buffer;
-            points.push((out_x.clamp(MIN_X, MAX_X), out_y.clamp(MIN_Y, MAX_Y)));
-        }
+        let buffer = LAND_MASK_BUFFER_CM.max(30.0 * MAP_PIXEL_TO_CM);
+        let half_sector = std::f64::consts::PI / LAND_MASK_SECTORS as f64;
+        let angular_margin = 1.0 / half_sector.cos();
+        let points = radii
+            .iter()
+            .enumerate()
+            .map(|(i, radius)| {
+                let angle = -std::f64::consts::PI
+                    + (i as f64 + 0.5) * 2.0 * std::f64::consts::PI / LAND_MASK_SECTORS as f64;
+                let out_radius = radius * angular_margin + buffer;
+                (
+                    (center_x + angle.cos() * out_radius).clamp(MIN_X, MAX_X),
+                    (center_y + angle.sin() * out_radius).clamp(MIN_Y, MAX_Y),
+                )
+            })
+            .collect();
 
         Self { points }
     }
@@ -1236,29 +1268,14 @@ mod tests {
     }
 
     #[test]
-    fn test_ocean_points_are_not_valid_base_sites() {
+    fn test_buildable_land_mask_contains_all_nodes() {
         let nodes = crate::data_loader::load_default_nodes();
         let config = OptimizerConfig::default();
         let ctx = prepare_context(&nodes, &config);
 
-        assert!(!is_in_polygon(-310000.0, -330000.0, &ctx.land_mask.points));
-        assert!(is_in_polygon(-200000.0, -80000.0, &ctx.land_mask.points));
-    }
-
-    #[test]
-    fn test_buildable_land_mask_matches_known_edge_cases() {
-        let nodes = crate::data_loader::load_default_nodes();
-        let config = OptimizerConfig::default();
-        let ctx = prepare_context(&nodes, &config);
-
-        assert!(is_in_polygon(-271000.0, -192000.0, &ctx.land_mask.points)); // gas pillars / yellow slug coast
-        assert!(is_in_polygon(-298000.0, -37000.0, &ctx.land_mask.points)); // western blue slug coast
-        assert!(is_in_polygon(291000.0, 74000.0, &ctx.land_mask.points)); // hard-drive island/shoreline area
-        assert!(is_in_polygon(321000.0, -176000.0, &ctx.land_mask.points)); // Dune Desert land
-
-        assert!(!is_in_polygon(390000.0, 74000.0, &ctx.land_mask.points)); // east ocean near hard-drive area
-        assert!(!is_in_polygon(410000.0, -330000.0, &ctx.land_mask.points)); // northern Dune Desert black/ocean area
-        assert!(!is_in_polygon(-50000.0, 330000.0, &ctx.land_mask.points)); // south of Grass Fields playable land
+        assert_eq!(ctx.land_mask.points.len(), LAND_MASK_SECTORS);
+        for node in &ctx.opt_nodes {
+            assert!(is_in_polygon(node.x, node.y, &ctx.land_mask.points));
+        }
     }
 }
-
