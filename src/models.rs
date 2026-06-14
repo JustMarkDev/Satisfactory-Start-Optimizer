@@ -214,6 +214,131 @@ impl GamePhase {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct PresetDescriptor {
+    pub id: &'static str,
+    pub name: &'static str,
+    pub phase: GamePhase,
+    pub sigma: f64,
+    pub ignore_spawns: bool,
+    weight_builder: fn(&mut HashMap<String, f64>),
+}
+
+impl PresetDescriptor {
+    pub fn build_weights(self) -> HashMap<String, f64> {
+        let mut weights = HashMap::new();
+        (self.weight_builder)(&mut weights);
+        weights
+    }
+}
+
+fn apply_phase1_weights(weights: &mut HashMap<String, f64>) {
+    GamePhase::Phase1.apply_weights(weights);
+}
+
+fn apply_phase2_weights(weights: &mut HashMap<String, f64>) {
+    GamePhase::Phase2.apply_weights(weights);
+}
+
+fn apply_phase3_weights(weights: &mut HashMap<String, f64>) {
+    GamePhase::Phase3.apply_weights(weights);
+}
+
+fn apply_phase4_weights(weights: &mut HashMap<String, f64>) {
+    GamePhase::Phase4.apply_weights(weights);
+}
+
+fn apply_phase5_weights(weights: &mut HashMap<String, f64>) {
+    GamePhase::Phase5.apply_weights(weights);
+}
+
+pub fn apply_collectibles_weights(weights: &mut HashMap<String, f64>) {
+    weights.clear();
+    weights.insert("blueslug".to_string(), 0.3);
+    weights.insert("yellowslug".to_string(), 0.8);
+    weights.insert("purpleslug".to_string(), 1.2);
+    weights.insert("mercer".to_string(), 1.0);
+    weights.insert("somersloop".to_string(), 1.0);
+    weights.insert("harddrive".to_string(), 1.5);
+    weights.insert("paleberry".to_string(), 0.0);
+    weights.insert("berylnut".to_string(), 0.0);
+    weights.insert("baconagaric".to_string(), 0.0);
+}
+
+pub static PRESET_DESCRIPTORS: &[PresetDescriptor] = &[
+    PresetDescriptor {
+        id: "phase1",
+        name: "Phase 1 — Early Game (Tiers 1-2)",
+        phase: GamePhase::Phase1,
+        sigma: 200.0,
+        ignore_spawns: false,
+        weight_builder: apply_phase1_weights,
+    },
+    PresetDescriptor {
+        id: "phase2",
+        name: "Phase 2 — Steel & Coal (Tiers 3-4)",
+        phase: GamePhase::Phase2,
+        sigma: 300.0,
+        ignore_spawns: false,
+        weight_builder: apply_phase2_weights,
+    },
+    PresetDescriptor {
+        id: "phase3",
+        name: "Phase 3 — Oil & Quartz (Tiers 5-6)",
+        phase: GamePhase::Phase3,
+        sigma: 400.0,
+        ignore_spawns: false,
+        weight_builder: apply_phase3_weights,
+    },
+    PresetDescriptor {
+        id: "phase4",
+        name: "Phase 4 — Aluminum & Nuclear (Tiers 7-8)",
+        phase: GamePhase::Phase4,
+        sigma: 600.0,
+        ignore_spawns: true,
+        weight_builder: apply_phase4_weights,
+    },
+    PresetDescriptor {
+        id: "phase5",
+        name: "Phase 5 — Quantum (Tier 9)",
+        phase: GamePhase::Phase5,
+        sigma: 800.0,
+        ignore_spawns: true,
+        weight_builder: apply_phase5_weights,
+    },
+    PresetDescriptor {
+        id: "collectibles",
+        name: "Collectibles — Slugs, Artifacts & Hard Drives",
+        phase: GamePhase::Phase5,
+        sigma: 1000.0,
+        ignore_spawns: true,
+        weight_builder: apply_collectibles_weights,
+    },
+];
+
+pub fn all_presets() -> &'static [PresetDescriptor] {
+    PRESET_DESCRIPTORS
+}
+
+pub fn preset_by_id_or_phase(input: &str) -> Option<&'static PresetDescriptor> {
+    let input = input.to_lowercase();
+    all_presets()
+        .iter()
+        .find(|preset| preset.id == input.as_str())
+        .or_else(|| GamePhase::from_str(&input).and_then(preset_by_phase))
+}
+
+pub fn preset_by_phase(phase: GamePhase) -> Option<&'static PresetDescriptor> {
+    all_presets().iter().find(|preset| preset.phase == phase)
+}
+
+pub fn apply_preset_to_config(preset: &PresetDescriptor, config: &mut OptimizerConfig) {
+    config.weights = preset.build_weights();
+    config.game_phase = preset.phase;
+    config.sigma = preset.sigma;
+    config.ignore_spawns = preset.ignore_spawns;
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResourceNode {
     #[serde(rename = "type")]
@@ -375,5 +500,45 @@ impl Default for OptimizerConfig {
             game_phase: GamePhase::Phase1,
             ignore_spawns: false,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn applying_phase_presets_sets_full_config() {
+        let mut phase1_config = OptimizerConfig::default();
+        let phase1 = preset_by_id_or_phase("phase1").expect("phase1 preset missing");
+        apply_preset_to_config(phase1, &mut phase1_config);
+        assert_eq!(phase1_config.game_phase, GamePhase::Phase1);
+        assert_eq!(phase1_config.sigma, 200.0);
+        assert!(!phase1_config.ignore_spawns);
+        assert!(!phase1_config.weights.is_empty());
+
+        let mut phase4_config = OptimizerConfig::default();
+        let phase4 = preset_by_id_or_phase("phase4").expect("phase4 preset missing");
+        apply_preset_to_config(phase4, &mut phase4_config);
+        assert_eq!(phase4_config.game_phase, GamePhase::Phase4);
+        assert_eq!(phase4_config.sigma, 600.0);
+        assert!(phase4_config.ignore_spawns);
+        assert!(!phase4_config.weights.is_empty());
+    }
+
+    #[test]
+    fn collectibles_preset_has_expected_weights_and_radius() {
+        let preset = preset_by_id_or_phase("collectibles").expect("collectibles preset missing");
+        let weights = preset.build_weights();
+
+        assert_eq!(preset.phase, GamePhase::Phase5);
+        assert_eq!(preset.sigma, 1000.0);
+        assert!(preset.ignore_spawns);
+        assert_eq!(weights.get("blueslug").copied(), Some(0.3));
+        assert_eq!(weights.get("yellowslug").copied(), Some(0.8));
+        assert_eq!(weights.get("purpleslug").copied(), Some(1.2));
+        assert_eq!(weights.get("mercer").copied(), Some(1.0));
+        assert_eq!(weights.get("somersloop").copied(), Some(1.0));
+        assert_eq!(weights.get("harddrive").copied(), Some(1.5));
     }
 }

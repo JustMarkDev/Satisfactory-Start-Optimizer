@@ -17,7 +17,7 @@ use std::sync::Arc;
 
 use crate::models::{
     DEFAULT_SPAWNS, DistanceDecay, GamePhase, OptimizerConfig, PurityOverride, ResourceNode,
-    SearchStrategy, UtilityFunction,
+    SearchStrategy, UtilityFunction, all_presets,
 };
 use crate::optimizer;
 
@@ -105,19 +105,6 @@ fn parse_phase(s: &str) -> GamePhase {
     }
 }
 
-fn apply_collectibles_weights(weights: &mut HashMap<String, f64>) {
-    weights.clear();
-    weights.insert("blueslug".to_string(), 0.3);
-    weights.insert("yellowslug".to_string(), 0.8);
-    weights.insert("purpleslug".to_string(), 1.2);
-    weights.insert("mercer".to_string(), 1.0);
-    weights.insert("somersloop".to_string(), 1.0);
-    weights.insert("harddrive".to_string(), 1.5);
-    weights.insert("paleberry".to_string(), 0.0);
-    weights.insert("berylnut".to_string(), 0.0);
-    weights.insert("baconagaric".to_string(), 0.0);
-}
-
 fn validate_optimize_request(req: &OptimizeRequest, nodes: &[ResourceNode]) -> Result<(), String> {
     if !req.sigma.is_finite() {
         return Err("Invalid optimize request: sigma must be finite".to_string());
@@ -173,54 +160,18 @@ fn local_dashboard_cors() -> Cors {
 }
 
 // ---------------------------------------------------------------------------
-// Phase preset builder (mirrors JS PRESETS)
+// Phase preset builder
 // ---------------------------------------------------------------------------
 
 fn build_presets() -> Vec<PresetResponse> {
-    let phases: &[(&str, &str, bool, f64)] = &[
-        ("phase1", "Phase 1 — Early Game (Tiers 1-2)", false, 200.0),
-        ("phase2", "Phase 2 — Steel & Coal (Tiers 3-4)", false, 300.0),
-        ("phase3", "Phase 3 — Oil & Quartz (Tiers 5-6)", false, 400.0),
-        (
-            "phase4",
-            "Phase 4 — Aluminum & Nuclear (Tiers 7-8)",
-            true,
-            600.0,
-        ),
-        ("phase5", "Phase 5 — Quantum (Tier 9)", true, 800.0),
-        (
-            "collectibles",
-            "Collectibles — Slugs, Artifacts & Hard Drives",
-            true,
-            1000.0,
-        ),
-    ];
-
-    phases
+    all_presets()
         .iter()
-        .map(|(id, name, ignore_spawns, sigma)| {
-            let mut weights = HashMap::<String, f64>::new();
-
-            if *id == "collectibles" {
-                apply_collectibles_weights(&mut weights);
-            } else {
-                // Apply the standard model weights via the Rust model system
-                let phase = parse_phase(id);
-                phase.apply_weights(&mut weights);
-            }
-
-            // Force berylnut / paleberry / baconagaric off by default
-            weights.insert("paleberry".to_string(), 0.0);
-            weights.insert("berylnut".to_string(), 0.0);
-            weights.insert("baconagaric".to_string(), 0.0);
-
-            PresetResponse {
-                id: id.to_string(),
-                name: name.to_string(),
-                sigma: *sigma,
-                ignore_spawns: *ignore_spawns,
-                weights,
-            }
+        .map(|preset| PresetResponse {
+            id: preset.id.to_string(),
+            name: preset.name.to_string(),
+            sigma: preset.sigma,
+            ignore_spawns: preset.ignore_spawns,
+            weights: preset.build_weights(),
         })
         .collect()
 }
@@ -402,6 +353,24 @@ mod tests {
                 .find(|preset| preset.id == phase_id)
                 .expect("late phase preset missing");
             assert!(preset.ignore_spawns);
+        }
+    }
+
+    #[test]
+    fn api_presets_match_shared_descriptors() {
+        let api_presets = build_presets();
+
+        for descriptor in all_presets() {
+            let api_preset = api_presets
+                .iter()
+                .find(|preset| preset.id == descriptor.id)
+                .expect("shared preset missing from API presets");
+
+            assert_eq!(api_preset.id, descriptor.id);
+            assert_eq!(api_preset.sigma, descriptor.sigma);
+            assert_eq!(api_preset.ignore_spawns, descriptor.ignore_spawns);
+            assert_eq!(api_preset.weights, descriptor.build_weights());
+            assert!(!api_preset.weights.is_empty());
         }
     }
 
