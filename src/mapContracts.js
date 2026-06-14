@@ -36,10 +36,17 @@ export const RESOURCES = [
 export const DEFAULT_PHASE_IDS = ["phase1", "phase2", "phase3", "phase4", "phase5", "collectibles"];
 
 export function parsePurityMultiplier(purity) {
-  if (purity.includes("pure") && !purity.includes("impure")) {
+  const normalizedPurity = String(purity).toLowerCase();
+
+  if (normalizedPurity === "rp_pure" || normalizedPurity === "pure") {
     return 2.0;
   }
-  if (purity.includes("impure") || purity.includes("inpure")) {
+  if (
+    normalizedPurity === "rp_impure" ||
+    normalizedPurity === "rp_inpure" ||
+    normalizedPurity === "impure" ||
+    normalizedPurity === "inpure"
+  ) {
     return 0.5;
   }
   return 1.0;

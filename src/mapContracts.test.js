@@ -5,6 +5,7 @@ import {
   hasOptimizationObjective,
   nonZeroWeights,
   parseNodes,
+  parsePurityMultiplier,
   RESOURCES,
 } from "./mapContracts.js";
 
@@ -64,6 +65,19 @@ describe("map contracts", () => {
       obstructed: true,
     });
     expect(nodes.waterwellIndices).toEqual([]);
+  });
+
+  test("parsePurityMultiplier maps engine purity tokens", () => {
+    expect(parsePurityMultiplier("RP_Inpure")).toBe(0.5);
+    expect(parsePurityMultiplier("RP_Impure")).toBe(0.5);
+    expect(parsePurityMultiplier("RP_Normal")).toBe(1.0);
+    expect(parsePurityMultiplier("RP_Pure")).toBe(2.0);
+  });
+
+  test("parsePurityMultiplier maps lowercase purity tokens", () => {
+    expect(parsePurityMultiplier("impure")).toBe(0.5);
+    expect(parsePurityMultiplier("normal")).toBe(1.0);
+    expect(parsePurityMultiplier("pure")).toBe(2.0);
   });
 
   test("empty optimization objectives are detectable before API calls", () => {
