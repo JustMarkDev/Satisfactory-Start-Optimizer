@@ -1,7 +1,7 @@
 // FICSIT Starting Position Optimizer
 // Web Dashboard Logic
 
-import { hasOptimizationObjective, nonZeroWeights, parseNodes, RESOURCES } from "./mapContracts.js";
+import { hasOptimizationObjective, nonZeroWeights, RESOURCES } from "./mapContracts.js";
 
 const LAND_MASK_SECTORS = 128;
 const LAND_MASK_BUFFER_CM = 22000;
@@ -851,12 +851,11 @@ async function init() {
     // 3. Populate default phase preset
     applyPhasePreset("phase1");
 
-    // 4. Fetch the static map dataset for rendering node dots
-    const res = await fetch("/data/complete-map-data.json");
-    if (!res.ok) throw new Error("Network response error loading map dataset");
-    const data = await res.json();
+    // 4. Fetch normalized map nodes from the backend parser
+    const nodesRes = await fetch("/api/nodes");
+    if (!nodesRes.ok) throw new Error("Unable to contact backend FICSIT API server for nodes.");
 
-    state.rawNodes = parseNodes(data);
+    state.rawNodes = await nodesRes.json();
     buildableLandPolygon = computeBuildableLandPolygon(state.rawNodes);
 
     console.log(`Database loaded: ${state.rawNodes.length} nodes parsed successfully.`);

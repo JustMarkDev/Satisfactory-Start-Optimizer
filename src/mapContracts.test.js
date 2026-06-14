@@ -4,7 +4,6 @@ import {
   DEFAULT_PHASE_IDS,
   hasOptimizationObjective,
   nonZeroWeights,
-  parseNodes,
   parsePurityMultiplier,
   RESOURCES,
 } from "./mapContracts.js";
@@ -25,46 +24,6 @@ describe("map contracts", () => {
       "phase5",
       "collectibles",
     ]);
-  });
-
-  test("parseNodes maps resource markers into optimizer nodes", () => {
-    const nodes = parseNodes({
-      options: [
-        {
-          options: [
-            {
-              options: [
-                {
-                  layerId: "ironNodes",
-                  markers: [
-                    {
-                      type: "Desc_OreIron_C",
-                      x: "123.5",
-                      y: "-456.25",
-                      z: "78",
-                      purity: "pure",
-                      obstructed: true,
-                    },
-                  ],
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    });
-
-    expect(nodes).toHaveLength(1);
-    expect(nodes[0]).toEqual({
-      resource_type: "iron",
-      x: 123.5,
-      y: -456.25,
-      z: 78,
-      purityMultiplier: 2,
-      purity: "pure",
-      obstructed: true,
-    });
-    expect(nodes.waterwellIndices).toEqual([]);
   });
 
   test("parsePurityMultiplier maps engine purity tokens", () => {
