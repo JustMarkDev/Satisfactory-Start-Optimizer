@@ -138,6 +138,64 @@ fn distance_to_nearest_water(
     min_dist_m
 }
 
+fn decay_weight(
+    distance_m: f64,
+    distance_sq_m: f64,
+    sigma: f64,
+    decay_func: crate::models::DistanceDecay,
+) -> f64 {
+    match decay_func {
+        crate::models::DistanceDecay::Gaussian => {
+            let two_sigma_sq = 2.0 * sigma * sigma;
+            (-distance_sq_m / two_sigma_sq).exp()
+        }
+        crate::models::DistanceDecay::Exponential => (-distance_m / sigma).exp(),
+        crate::models::DistanceDecay::PowerLaw => 1.0 / (distance_m / sigma + 1.0),
+        crate::models::DistanceDecay::Linear => (1.0 - distance_m / sigma).max(0.0),
+        crate::models::DistanceDecay::LogisticStep => {
+            if distance_m <= sigma {
+                1.0
+            } else {
+                0.05
+            }
+        }
+    }
+}
+
+fn obstructed_node_contributes(obstructed: bool, game_phase: crate::models::GamePhase) -> bool {
+    !obstructed
+        || (game_phase != crate::models::GamePhase::Phase1
+            && game_phase != crate::models::GamePhase::Phase2)
+}
+
+fn node_yield_contribution(
+    node: &OptNode,
+    decay: f64,
+    game_phase: crate::models::GamePhase,
+) -> f64 {
+    if obstructed_node_contributes(node.obstructed, game_phase) {
+        node.multiplier * decay
+    } else {
+        0.0
+    }
+}
+
+fn virtual_water_yield(
+    x: f64,
+    y: f64,
+    opt_nodes: &[OptNode],
+    waterwell_idx: Option<usize>,
+    config: &OptimizerConfig,
+) -> f64 {
+    let water_dist = distance_to_nearest_water(x, y, opt_nodes, waterwell_idx);
+    decay_weight(
+        water_dist,
+        water_dist * water_dist,
+        config.sigma,
+        config.decay_func,
+    )
+}
+
 /// Estimates the ground altitude Z at a coordinate (x, y) using KNN IDW (Inverse Distance Weighting)
 fn estimate_altitude(
     x: f64,
@@ -432,32 +490,8 @@ fn calculate_utility(
 
                 if d_sq <= radius_m_sq {
                     let d = d_sq.sqrt();
-                    let decay = match config.decay_func {
-                        crate::models::DistanceDecay::Gaussian => {
-                            let two_sigma_sq = 2.0 * config.sigma * config.sigma;
-                            (-d_sq / two_sigma_sq).exp()
-                        }
-                        crate::models::DistanceDecay::Exponential => (-d / config.sigma).exp(),
-                        crate::models::DistanceDecay::PowerLaw => 1.0 / (d / config.sigma + 1.0),
-                        crate::models::DistanceDecay::Linear => (1.0 - d / config.sigma).max(0.0),
-                        crate::models::DistanceDecay::LogisticStep => {
-                            if d <= config.sigma {
-                                1.0
-                            } else {
-                                0.05
-                            }
-                        }
-                    };
-                    let mut contribution = node.multiplier * decay;
-
-                    // Obstructed nodes are locked behind Nobelisk explosives (Phase 1 & 2)
-                    if node.obstructed
-                        && (config.game_phase == crate::models::GamePhase::Phase1
-                            || config.game_phase == crate::models::GamePhase::Phase2)
-                    {
-                        contribution = 0.0;
-                    }
-
+                    let decay = decay_weight(d, d_sq, config.sigma, config.decay_func);
+                    let contribution = node_yield_contribution(node, decay, config.game_phase);
                     yields[node.res_idx] += contribution;
 
                     // Keep track of nearby heights using Welford's algorithm
@@ -475,24 +509,7 @@ fn calculate_utility(
 
     // Add virtual water yield based on proximity to mapped lakes/ponds or waterwells.
     if let Some(&water_idx) = res_to_idx.get("water") {
-        let water_dist = distance_to_nearest_water(x, y, opt_nodes, waterwell_idx);
-        let water_decay = match config.decay_func {
-            crate::models::DistanceDecay::Gaussian => {
-                let two_sigma_sq = 2.0 * config.sigma * config.sigma;
-                (-(water_dist * water_dist) / two_sigma_sq).exp()
-            }
-            crate::models::DistanceDecay::Exponential => (-water_dist / config.sigma).exp(),
-            crate::models::DistanceDecay::PowerLaw => 1.0 / (water_dist / config.sigma + 1.0),
-            crate::models::DistanceDecay::Linear => (1.0 - water_dist / config.sigma).max(0.0),
-            crate::models::DistanceDecay::LogisticStep => {
-                if water_dist <= config.sigma {
-                    1.0
-                } else {
-                    0.05
-                }
-            }
-        };
-        yields[water_idx] = water_decay;
+        yields[water_idx] = virtual_water_yield(x, y, opt_nodes, waterwell_idx, config);
     }
 
     // 3. Terrain Flatness Penalty (Population std dev of local node heights)
@@ -771,23 +788,11 @@ fn run_hill_climbing(
 
                 // Accumulate decay-weighted yield for this resource type
                 let d_m = d_sq_3d.sqrt() / 100.0;
-                let decay = match config.decay_func {
-                    crate::models::DistanceDecay::Gaussian => {
-                        let two_sigma_sq = 2.0 * config.sigma * config.sigma;
-                        (-(d_m * d_m) / two_sigma_sq).exp()
-                    }
-                    crate::models::DistanceDecay::Exponential => (-d_m / config.sigma).exp(),
-                    crate::models::DistanceDecay::PowerLaw => 1.0 / (d_m / config.sigma + 1.0),
-                    crate::models::DistanceDecay::Linear => (1.0 - d_m / config.sigma).max(0.0),
-                    crate::models::DistanceDecay::LogisticStep => {
-                        if d_m <= config.sigma {
-                            1.0
-                        } else {
-                            0.05
-                        }
-                    }
-                };
-                *resource_yields.entry(name.clone()).or_insert(0.0) += node.multiplier * decay;
+                let decay = decay_weight(d_m, d_m * d_m, config.sigma, config.decay_func);
+                let contribution = node_yield_contribution(node, decay, config.game_phase);
+                if contribution > 0.0 {
+                    *resource_yields.entry(name.clone()).or_insert(0.0) += contribution;
+                }
             }
         }
 
@@ -795,6 +800,13 @@ fn run_hill_climbing(
         if d_sq_2d <= tri_radius_sq {
             tri_sum += ((final_z - node.z) / 100.0).abs(); // convert cm → m
             tri_count += 1;
+        }
+    }
+
+    if res_to_idx.contains_key("water") {
+        let water_yield = virtual_water_yield(curr_x, curr_y, opt_nodes, waterwell_idx, config);
+        if water_yield > 0.0 {
+            resource_yields.insert("water".to_string(), water_yield);
         }
     }
 
@@ -1209,7 +1221,30 @@ pub fn optimize(nodes: &[ResourceNode], config: &OptimizerConfig) -> Vec<Optimiz
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{GamePhase, OptimizerConfig};
+    use crate::models::{GamePhase, OptimizerConfig, Purity, ResourceNode};
+    use std::collections::HashMap;
+
+    fn node(resource_type: &str, x: f64, y: f64, obstructed: bool) -> ResourceNode {
+        ResourceNode {
+            resource_type: resource_type.to_string(),
+            purity: Purity::Normal,
+            x,
+            y,
+            z: 0.0,
+            obstructed,
+        }
+    }
+
+    fn config_for(resources: &[(&str, f64)]) -> OptimizerConfig {
+        let mut config = OptimizerConfig::default();
+        config.weights = HashMap::new();
+        for (name, weight) in resources {
+            config.weights.insert((*name).to_string(), *weight);
+        }
+        config.strategy = crate::models::SearchStrategy::Fast;
+        config.ignore_spawns = true;
+        config
+    }
 
     #[test]
     fn test_ignore_spawns() {
@@ -1255,6 +1290,61 @@ mod tests {
         );
 
         assert!(ignored_score > constrained_score);
+    }
+
+    #[test]
+    fn resource_yields_exclude_early_phase_obstructed_nodes() {
+        let nodes = vec![node("iron", 0.0, 0.0, true)];
+        let mut config = config_for(&[("iron", 1.0)]);
+        config.game_phase = GamePhase::Phase1;
+        config.sigma = 500.0;
+
+        let ctx = prepare_context(&nodes, &config);
+        let result = run_hill_climbing(
+            0.0,
+            0.0,
+            &ctx.opt_nodes,
+            &ctx.spatial_grid,
+            &config,
+            ctx.num_resources,
+            &ctx.weights_arr,
+            &ctx.epsilons_arr,
+            &ctx.res_to_idx,
+            ctx.waterwell_idx,
+            &ctx.land_mask,
+        );
+
+        assert_eq!(result.obstructed_nodes.get("Normal iron"), Some(&1));
+        assert_eq!(result.local_nodes.get("Normal iron"), None);
+        assert_eq!(
+            result.resource_yields.get("iron").copied().unwrap_or(0.0),
+            0.0
+        );
+    }
+
+    #[test]
+    fn resource_yields_include_virtual_static_water() {
+        let nodes = vec![node("iron", 140000.0, 230000.0, false)];
+        let mut config = config_for(&[("iron", 0.1), ("water", 1.0)]);
+        config.game_phase = GamePhase::Phase2;
+        config.sigma = 500.0;
+
+        let ctx = prepare_context(&nodes, &config);
+        let result = run_hill_climbing(
+            140000.0,
+            230000.0,
+            &ctx.opt_nodes,
+            &ctx.spatial_grid,
+            &config,
+            ctx.num_resources,
+            &ctx.weights_arr,
+            &ctx.epsilons_arr,
+            &ctx.res_to_idx,
+            ctx.waterwell_idx,
+            &ctx.land_mask,
+        );
+
+        assert!(result.resource_yields.get("water").copied().unwrap_or(0.0) > 0.0);
     }
 
     #[test]
