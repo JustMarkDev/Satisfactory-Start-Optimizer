@@ -8,7 +8,7 @@ A high-performance command-line utility built in Rust to calculate the mathemati
 
 1. **Customizable Distance Decay**: Models player traversal logistics. The value of a node decreases as distance grows, using Gaussian, Exponential, Power-Law (Gravity), or Linear decay models.
 2. **Flexible Utility Scoring**: Combines yields of multiple resource types using Cobb-Douglas (Multiplicative Balance), Leontief (Min-Bottleneck), or Linear Additive models.
-3. **Dynamic Resource Support**: Supports _any_ resource type (Iron, Copper, Limestone, Coal, Caterium, Oil, Bauxite, Sulfur, SAM, etc.) dynamically. You can add weights for any resource type in the game from the CLI or web dashboard.
+3. **Dynamic Resource Support**: The CLI and API can accept weights for resource IDs supported by the loaded map data. The web dashboard exposes a fixed set of known resources, collectibles, and threats through sliders.
 4. **Parallelized Search Engine**: Uses `rayon` to perform a global 2D grid search across the entire map bounds parallelized over your CPU threads, followed by a local gradient ascent (hill climbing) refinement down to centimeter precision.
 
 ---
@@ -131,13 +131,13 @@ The web dashboard provides an interactive satellite/in-game map overlay with rea
    bun run dev
    ```
 
-   This starts the Rust API server on `http://127.0.0.1:8080` and the Vite+ web UI on `http://127.0.0.1:3000` (with automatic browser opening). The UI proxies all API calls (`/api/*`) to the Rust backend.
+   This is the recommended startup path. It starts the Rust API server on `http://127.0.0.1:8080` and the Vite+ web UI on `http://127.0.0.1:3000` (with automatic browser opening). The UI proxies all API calls (`/api/*`) to the Rust backend.
 
 3. **Optional commands**:
 
    ```bash
-   bun run server # backend only
-   bun run ui     # frontend only
+   bun run server # backend only, on http://127.0.0.1:8080
+   bun run ui     # frontend only; assumes the backend is already running on 127.0.0.1:8080
    ```
 
 4. **Optional Vite+ maintenance commands**:
