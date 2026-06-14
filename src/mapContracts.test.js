@@ -1,6 +1,12 @@
 import { describe, expect, test } from "bun:test";
 
-import { DEFAULT_PHASE_IDS, parseNodes, RESOURCES } from "./mapContracts.js";
+import {
+  DEFAULT_PHASE_IDS,
+  hasOptimizationObjective,
+  nonZeroWeights,
+  parseNodes,
+  RESOURCES,
+} from "./mapContracts.js";
 
 describe("map contracts", () => {
   test("resource IDs are unique", () => {
@@ -58,5 +64,11 @@ describe("map contracts", () => {
       obstructed: true,
     });
     expect(nodes.waterwellIndices).toEqual([]);
+  });
+
+  test("empty optimization objectives are detectable before API calls", () => {
+    expect(nonZeroWeights({ iron: 0, copper: 1 })).toEqual({ copper: 1 });
+    expect(hasOptimizationObjective({ iron: 0, copper: 0 })).toBe(false);
+    expect(hasOptimizationObjective({ iron: 0, copper: 1 })).toBe(true);
   });
 });

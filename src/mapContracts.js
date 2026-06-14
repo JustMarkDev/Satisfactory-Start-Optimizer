@@ -45,6 +45,14 @@ export function parsePurityMultiplier(purity) {
   return 1.0;
 }
 
+export function nonZeroWeights(weights) {
+  return Object.fromEntries(Object.entries(weights).filter(([_, value]) => value !== 0));
+}
+
+export function hasOptimizationObjective(weights) {
+  return Object.keys(nonZeroWeights(weights)).length > 0;
+}
+
 // Parse Complete Map Data from Raw JSON format
 export function parseNodes(data) {
   const nodes = [];

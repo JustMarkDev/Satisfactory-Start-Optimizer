@@ -1,7 +1,7 @@
 // FICSIT Starting Position Optimizer
 // Web Dashboard Logic
 
-import { parseNodes, RESOURCES } from "./mapContracts.js";
+import { hasOptimizationObjective, nonZeroWeights, parseNodes, RESOURCES } from "./mapContracts.js";
 
 const LAND_MASK_SECTORS = 128;
 const LAND_MASK_BUFFER_CM = 22000;
@@ -143,6 +143,14 @@ async function runGlobalOptimization() {
   els.mapLoading.classList.add("active");
 
   try {
+    const weights = nonZeroWeights(config.weights);
+    if (!hasOptimizationObjective(config.weights)) {
+      els.mapLoading.innerHTML = `<span style="color: #ff3333; font-weight: bold; font-size: 1.1rem; margin-bottom: 12px;">OPTIMIZATION FAILED: Select at least one weighted resource.</span>
+        <span style="font-size: 0.8rem; color: var(--color-text-muted);">Enable a resource slider or apply a phase preset, then try again.</span>`;
+      els.mapLoading.classList.add("active");
+      return;
+    }
+
     // Build the request body
     const reqBody = {
       utility_func: config.utilityFunc,
@@ -152,7 +160,7 @@ async function runGlobalOptimization() {
       game_phase: config.gamePhase,
       sigma: config.sigma,
       ignore_spawns: config.ignoreSpawns,
-      weights: Object.fromEntries(Object.entries(config.weights).filter(([_, v]) => v !== 0)),
+      weights,
     };
 
     const apiRes = await fetch("/api/optimize", {
