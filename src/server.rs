@@ -123,7 +123,12 @@ fn build_presets() -> Vec<PresetResponse> {
         ("phase1", "Phase 1 — Early Game (Tiers 1-2)", false, 200.0),
         ("phase2", "Phase 2 — Steel & Coal (Tiers 3-4)", false, 300.0),
         ("phase3", "Phase 3 — Oil & Quartz (Tiers 5-6)", false, 400.0),
-        ("phase4", "Phase 4 — Aluminum & Nuclear (Tiers 7-8)", true, 600.0),
+        (
+            "phase4",
+            "Phase 4 — Aluminum & Nuclear (Tiers 7-8)",
+            true,
+            600.0,
+        ),
         ("phase5", "Phase 5 — Quantum (Tier 9)", true, 800.0),
         (
             "collectibles",
