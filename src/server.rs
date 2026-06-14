@@ -6,7 +6,11 @@
 //!   POST /api/optimize       → accepts OptimizerRequest JSON, returns top-3 OptimizationResult[]
 
 use actix_cors::Cors;
-use actix_web::{App, HttpResponse, HttpServer, Responder, web};
+use actix_web::{
+    App, HttpResponse, HttpServer, Responder,
+    http::{Method, header},
+    web,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -160,6 +164,14 @@ fn validate_optimize_request(req: &OptimizeRequest, nodes: &[ResourceNode]) -> R
     Ok(())
 }
 
+fn local_dashboard_cors() -> Cors {
+    Cors::default()
+        .allowed_origin("http://127.0.0.1:3000")
+        .allowed_origin("http://localhost:3000")
+        .allowed_methods([Method::GET, Method::POST])
+        .allowed_header(header::CONTENT_TYPE)
+}
+
 // ---------------------------------------------------------------------------
 // Phase preset builder (mirrors JS PRESETS)
 // ---------------------------------------------------------------------------
@@ -288,11 +300,8 @@ pub async fn run_server(port: u16) -> std::io::Result<()> {
     let data = Arc::new(AppState { nodes });
 
     HttpServer::new(move || {
-        // Allow all origins in dev (Vite runs on 3000, server on 8080)
-        let cors = Cors::permissive();
-
         App::new()
-            .wrap(cors)
+            .wrap(local_dashboard_cors())
             .app_data(web::Data::new(Arc::clone(&data)))
             .app_data(
                 web::JsonConfig::default()
@@ -317,7 +326,11 @@ pub async fn run_server(port: u16) -> std::io::Result<()> {
 mod tests {
     use super::*;
     use crate::models::Purity;
-    use actix_web::{App, http::StatusCode, test as actix_test};
+    use actix_web::{
+        App,
+        http::{StatusCode, header},
+        test as actix_test,
+    };
 
     #[test]
     fn presets_include_collectibles_and_late_water_wells() {
@@ -539,5 +552,53 @@ mod tests {
         let response = actix_test::call_service(&app, request).await;
 
         assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[actix_web::test]
+    async fn cors_allows_local_dashboard_origin() {
+        let app = actix_test::init_service(
+            App::new()
+                .wrap(local_dashboard_cors())
+                .route("/api/health", web::get().to(get_health)),
+        )
+        .await;
+
+        let request = actix_test::TestRequest::default()
+            .method(Method::OPTIONS)
+            .uri("/api/health")
+            .insert_header((header::ORIGIN, "http://127.0.0.1:3000"))
+            .insert_header((header::ACCESS_CONTROL_REQUEST_METHOD, "GET"))
+            .to_request();
+        let response = actix_test::call_service(&app, request).await;
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.headers().get(header::ACCESS_CONTROL_ALLOW_ORIGIN),
+            Some(&header::HeaderValue::from_static("http://127.0.0.1:3000"))
+        );
+    }
+
+    #[actix_web::test]
+    async fn cors_rejects_arbitrary_browser_origin() {
+        let app = actix_test::init_service(
+            App::new()
+                .wrap(local_dashboard_cors())
+                .route("/api/health", web::get().to(get_health)),
+        )
+        .await;
+
+        let request = actix_test::TestRequest::default()
+            .method(Method::OPTIONS)
+            .uri("/api/health")
+            .insert_header((header::ORIGIN, "https://example.com"))
+            .insert_header((header::ACCESS_CONTROL_REQUEST_METHOD, "GET"))
+            .to_request();
+        let response = actix_test::call_service(&app, request).await;
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(
+            response.headers().get(header::ACCESS_CONTROL_ALLOW_ORIGIN),
+            None
+        );
     }
 }
