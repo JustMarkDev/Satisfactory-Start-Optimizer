@@ -82,12 +82,7 @@ impl SpatialGrid {
 /// have been REMOVED: those regions are the map's impassable mountain walls, not
 /// accessible ocean. Treating them as free water caused the optimizer to inflate
 /// scores at the western/northern map boundary and produce border-edge results.
-fn distance_to_nearest_water(
-    x: f64,
-    y: f64,
-    opt_nodes: &[OptNode],
-    waterwell_idx: Option<usize>,
-) -> f64 {
+fn distance_to_nearest_water(x: f64, y: f64, waterwell_nodes: &[(f64, f64)]) -> f64 {
     let mut min_dist_cm = f64::MAX;
 
     // Major static bodies of water in Satisfactory (centres, half-widths, in cm)
@@ -122,16 +117,12 @@ fn distance_to_nearest_water(
     let mut min_dist_m = min_dist_cm / 100.0;
 
     // Add dynamic waterwell checks
-    if let Some(ww_idx) = waterwell_idx {
-        for node in opt_nodes {
-            if node.res_idx == ww_idx {
-                let dx = (x - node.x) / 100.0;
-                let dy = (y - node.y) / 100.0;
-                let dist = (dx * dx + dy * dy).sqrt();
-                if dist < min_dist_m {
-                    min_dist_m = dist;
-                }
-            }
+    for &(node_x, node_y) in waterwell_nodes {
+        let dx = (x - node_x) / 100.0;
+        let dy = (y - node_y) / 100.0;
+        let dist = (dx * dx + dy * dy).sqrt();
+        if dist < min_dist_m {
+            min_dist_m = dist;
         }
     }
 
@@ -361,7 +352,7 @@ fn calculate_utility(
     weights_arr: &[f64],
     epsilons_arr: &[f64],
     res_to_idx: &HashMap<String, usize>,
-    waterwell_idx: Option<usize>,
+    waterwell_nodes: &[(f64, f64)],
     land_mask: &LandMask,
 ) -> f64 {
     // Reject points outside the practical landmass polygon.
@@ -475,7 +466,7 @@ fn calculate_utility(
 
     // Add virtual water yield based on proximity to mapped lakes/ponds or waterwells.
     if let Some(&water_idx) = res_to_idx.get("water") {
-        let water_dist = distance_to_nearest_water(x, y, opt_nodes, waterwell_idx);
+        let water_dist = distance_to_nearest_water(x, y, waterwell_nodes);
         let water_decay = match config.decay_func {
             crate::models::DistanceDecay::Gaussian => {
                 let two_sigma_sq = 2.0 * config.sigma * config.sigma;
@@ -627,7 +618,7 @@ fn run_hill_climbing(
     weights_arr: &[f64],
     epsilons_arr: &[f64],
     res_to_idx: &HashMap<String, usize>,
-    waterwell_idx: Option<usize>,
+    waterwell_nodes: &[(f64, f64)],
     land_mask: &LandMask,
 ) -> OptimizationResult {
     let mut curr_x = start_x;
@@ -646,7 +637,7 @@ fn run_hill_climbing(
         weights_arr,
         epsilons_arr,
         res_to_idx,
-        waterwell_idx,
+        waterwell_nodes,
         land_mask,
     );
 
@@ -684,7 +675,7 @@ fn run_hill_climbing(
                 weights_arr,
                 epsilons_arr,
                 res_to_idx,
-                waterwell_idx,
+                waterwell_nodes,
                 land_mask,
             );
             if score > best_neighbor_score {
@@ -844,7 +835,7 @@ struct SearchContext {
     weights_arr: Vec<f64>,
     epsilons_arr: Vec<f64>,
     res_to_idx: HashMap<String, usize>,
-    waterwell_idx: Option<usize>,
+    waterwell_nodes: Vec<(f64, f64)>,
     land_mask: LandMask,
 }
 
@@ -934,6 +925,15 @@ fn prepare_context(nodes: &[ResourceNode], config: &OptimizerConfig) -> SearchCo
 
     let spatial_grid = SpatialGrid::new(&opt_nodes, 100000.0);
     let waterwell_idx = res_to_idx.get("waterwell").copied();
+    let waterwell_nodes = waterwell_idx
+        .map(|idx| {
+            opt_nodes
+                .iter()
+                .filter(|node| node.res_idx == idx)
+                .map(|node| (node.x, node.y))
+                .collect()
+        })
+        .unwrap_or_default();
     let land_mask = LandMask::from_nodes(&opt_nodes);
 
     SearchContext {
@@ -943,7 +943,7 @@ fn prepare_context(nodes: &[ResourceNode], config: &OptimizerConfig) -> SearchCo
         weights_arr,
         epsilons_arr,
         res_to_idx,
-        waterwell_idx,
+        waterwell_nodes,
         land_mask,
     }
 }
@@ -981,7 +981,7 @@ fn grid_search_refine(
                 &ctx.weights_arr,
                 &ctx.epsilons_arr,
                 &ctx.res_to_idx,
-                ctx.waterwell_idx,
+                &ctx.waterwell_nodes,
                 &ctx.land_mask,
             )
         })
@@ -1068,7 +1068,7 @@ fn grid_search_refine(
                 &ctx.weights_arr,
                 &ctx.epsilons_arr,
                 &ctx.res_to_idx,
-                ctx.waterwell_idx,
+                &ctx.waterwell_nodes,
                 &ctx.land_mask,
             )
         })
@@ -1187,7 +1187,7 @@ fn optimize_fast(ctx: &SearchContext, config: &OptimizerConfig) -> Vec<Optimizat
                 &ctx.weights_arr,
                 &ctx.epsilons_arr,
                 &ctx.res_to_idx,
-                ctx.waterwell_idx,
+                &ctx.waterwell_nodes,
                 &ctx.land_mask,
             )
         })
@@ -1210,6 +1210,28 @@ pub fn optimize(nodes: &[ResourceNode], config: &OptimizerConfig) -> Vec<Optimiz
 mod tests {
     use super::*;
     use crate::models::{GamePhase, OptimizerConfig};
+
+    #[test]
+    fn test_water_distance_inside_static_water_body() {
+        let distance = distance_to_nearest_water(140000.0, 230000.0, &[]);
+
+        assert!(distance.abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_water_distance_prefers_nearby_waterwell() {
+        let distance = distance_to_nearest_water(0.0, 0.0, &[(300.0, 400.0)]);
+
+        assert!((distance - 5.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_water_distance_without_waterwells_uses_static_water() {
+        let distance = distance_to_nearest_water(0.0, 0.0, &[]);
+        let expected_distance = (30_000.0_f64.powi(2) + 5_000.0_f64.powi(2)).sqrt() / 100.0;
+
+        assert!((distance - expected_distance).abs() < f64::EPSILON);
+    }
 
     #[test]
     fn test_ignore_spawns() {
@@ -1237,7 +1259,7 @@ mod tests {
             &ctx.weights_arr,
             &ctx.epsilons_arr,
             &ctx.res_to_idx,
-            ctx.waterwell_idx,
+            &ctx.waterwell_nodes,
             &ctx.land_mask,
         );
         let ignored_score = calculate_utility(
@@ -1250,7 +1272,7 @@ mod tests {
             &ctx.weights_arr,
             &ctx.epsilons_arr,
             &ctx.res_to_idx,
-            ctx.waterwell_idx,
+            &ctx.waterwell_nodes,
             &ctx.land_mask,
         );
 
