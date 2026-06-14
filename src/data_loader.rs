@@ -183,3 +183,113 @@ pub fn load_nodes_from_file<P: AsRef<Path>>(
     file.read_to_string(&mut s)?;
     load_nodes_from_str(&s)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::Purity;
+
+    #[test]
+    fn parses_new_map_format_marker() {
+        let nodes = load_nodes_from_str(
+            r#"{
+                "options": [
+                    {
+                        "options": [
+                            {
+                                "options": [
+                                    {
+                                        "layerId": "ironNodes",
+                                        "markers": [
+                                            {
+                                                "type": "Desc_OreIron_C",
+                                                "x": 123.5,
+                                                "y": -456.25,
+                                                "z": 78.0,
+                                                "purity": "RP_Pure",
+                                                "obstructed": true
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }"#,
+        )
+        .expect("new map format should parse");
+
+        assert_eq!(nodes.len(), 1);
+        assert_eq!(nodes[0].resource_type, "iron");
+        assert_eq!(nodes[0].purity, Purity::Pure);
+        assert_eq!(nodes[0].x, 123.5);
+        assert_eq!(nodes[0].y, -456.25);
+        assert_eq!(nodes[0].z, 78.0);
+        assert!(nodes[0].obstructed);
+    }
+
+    #[test]
+    fn parses_old_resource_node_array_format() {
+        let nodes = load_nodes_from_str(
+            r#"[
+                {
+                    "type": "copper",
+                    "purity": "normal",
+                    "x": 1.0,
+                    "y": 2.0,
+                    "z": 3.0,
+                    "obstructed": false
+                }
+            ]"#,
+        )
+        .expect("old node array format should parse");
+
+        assert_eq!(nodes.len(), 1);
+        assert_eq!(nodes[0].resource_type, "copper");
+        assert_eq!(nodes[0].purity, Purity::Normal);
+        assert_eq!(nodes[0].x, 1.0);
+        assert_eq!(nodes[0].y, 2.0);
+        assert_eq!(nodes[0].z, 3.0);
+        assert!(!nodes[0].obstructed);
+    }
+
+    #[test]
+    fn parses_engine_purity_tokens() {
+        let fixture = |purity: &str| {
+            format!(
+                r#"{{
+                    "options": [
+                        {{
+                            "options": [
+                                {{
+                                    "options": [
+                                        {{
+                                            "layerId": "limestoneNodes",
+                                            "markers": [
+                                                {{
+                                                    "type": "Desc_Stone_C",
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "purity": "{purity}"
+                                                }}
+                                            ]
+                                        }}
+                                    ]
+                                }}
+                            ]
+                        }}
+                    ]
+                }}"#
+            )
+        };
+
+        let impure = load_nodes_from_str(&fixture("RP_Inpure")).expect("impure token should parse");
+        let normal = load_nodes_from_str(&fixture("RP_Normal")).expect("normal token should parse");
+        let pure = load_nodes_from_str(&fixture("RP_Pure")).expect("pure token should parse");
+
+        assert_eq!(impure[0].purity, Purity::Impure);
+        assert_eq!(normal[0].purity, Purity::Normal);
+        assert_eq!(pure[0].purity, Purity::Pure);
+    }
+}

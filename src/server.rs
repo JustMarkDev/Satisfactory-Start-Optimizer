@@ -6,14 +6,18 @@
 //!   POST /api/optimize       → accepts OptimizerRequest JSON, returns top-3 OptimizationResult[]
 
 use actix_cors::Cors;
-use actix_web::{App, HttpResponse, HttpServer, Responder, web};
+use actix_web::{
+    App, HttpResponse, HttpServer, Responder,
+    http::{Method, header},
+    web,
+};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use crate::models::{
-    DEFAULT_SPAWNS, DistanceDecay, GamePhase, OptimizerConfig, PurityOverride, SearchStrategy,
-    UtilityFunction,
+    DEFAULT_SPAWNS, DistanceDecay, GamePhase, OptimizerConfig, PurityOverride, ResourceNode,
+    SearchStrategy, UtilityFunction,
 };
 use crate::optimizer;
 
@@ -114,6 +118,60 @@ fn apply_collectibles_weights(weights: &mut HashMap<String, f64>) {
     weights.insert("baconagaric".to_string(), 0.0);
 }
 
+fn validate_optimize_request(req: &OptimizeRequest, nodes: &[ResourceNode]) -> Result<(), String> {
+    if !req.sigma.is_finite() {
+        return Err("Invalid optimize request: sigma must be finite".to_string());
+    }
+
+    let mut meaningful_weights = Vec::new();
+    for (resource_id, weight) in &req.weights {
+        if !weight.is_finite() {
+            return Err("Invalid optimize request: weight must be finite".to_string());
+        }
+        if *weight != 0.0 {
+            meaningful_weights.push(resource_id.as_str());
+        }
+    }
+
+    if meaningful_weights.is_empty() {
+        return Err(
+            "Invalid optimize request: at least one resource weight is required".to_string(),
+        );
+    }
+
+    let mut known_resource_ids = nodes
+        .iter()
+        .map(|node| node.resource_type.as_str())
+        .collect::<HashSet<_>>();
+    known_resource_ids.insert("water");
+
+    for resource_id in &meaningful_weights {
+        if !known_resource_ids.contains(resource_id) {
+            return Err("Invalid optimize request: unknown resource id".to_string());
+        }
+    }
+
+    let resource_universe_size = nodes
+        .iter()
+        .map(|node| node.resource_type.as_str())
+        .chain(meaningful_weights)
+        .collect::<HashSet<_>>()
+        .len();
+    if resource_universe_size > 128 {
+        return Err("Invalid optimize request: too many resource types".to_string());
+    }
+
+    Ok(())
+}
+
+fn local_dashboard_cors() -> Cors {
+    Cors::default()
+        .allowed_origin("http://127.0.0.1:3000")
+        .allowed_origin("http://localhost:3000")
+        .allowed_methods([Method::GET, Method::POST])
+        .allowed_header(header::CONTENT_TYPE)
+}
+
 // ---------------------------------------------------------------------------
 // Phase preset builder (mirrors JS PRESETS)
 // ---------------------------------------------------------------------------
@@ -123,7 +181,12 @@ fn build_presets() -> Vec<PresetResponse> {
         ("phase1", "Phase 1 — Early Game (Tiers 1-2)", false, 200.0),
         ("phase2", "Phase 2 — Steel & Coal (Tiers 3-4)", false, 300.0),
         ("phase3", "Phase 3 — Oil & Quartz (Tiers 5-6)", false, 400.0),
-        ("phase4", "Phase 4 — Aluminum & Nuclear (Tiers 7-8)", true, 600.0),
+        (
+            "phase4",
+            "Phase 4 — Aluminum & Nuclear (Tiers 7-8)",
+            true,
+            600.0,
+        ),
         ("phase5", "Phase 5 — Quantum (Tier 9)", true, 800.0),
         (
             "collectibles",
@@ -181,6 +244,10 @@ async fn post_optimize(
 ) -> impl Responder {
     let req = body.into_inner();
 
+    if let Err(message) = validate_optimize_request(&req, &state.nodes) {
+        return HttpResponse::BadRequest().body(message);
+    }
+
     // Build OptimizerConfig from request
     let mut config = OptimizerConfig {
         sigma: req.sigma.clamp(50.0, 1000.0),
@@ -233,11 +300,8 @@ pub async fn run_server(port: u16) -> std::io::Result<()> {
     let data = Arc::new(AppState { nodes });
 
     HttpServer::new(move || {
-        // Allow all origins in dev (Vite runs on 3000, server on 8080)
-        let cors = Cors::permissive();
-
         App::new()
-            .wrap(cors)
+            .wrap(local_dashboard_cors())
             .app_data(web::Data::new(Arc::clone(&data)))
             .app_data(
                 web::JsonConfig::default()
@@ -261,6 +325,12 @@ pub async fn run_server(port: u16) -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::Purity;
+    use actix_web::{
+        App,
+        http::{StatusCode, header},
+        test as actix_test,
+    };
 
     #[test]
     fn presets_include_collectibles_and_late_water_wells() {
@@ -294,5 +364,241 @@ mod tests {
                 .expect("late phase preset missing");
             assert!(preset.weights.get("waterwell").copied().unwrap_or(0.0) > 0.0);
         }
+    }
+
+    #[test]
+    fn presets_keep_phase_contract() {
+        let presets = build_presets();
+        let ids = presets
+            .iter()
+            .map(|preset| preset.id.as_str())
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            ids,
+            [
+                "phase1",
+                "phase2",
+                "phase3",
+                "phase4",
+                "phase5",
+                "collectibles"
+            ]
+        );
+        assert_eq!(presets.len(), 6);
+        assert!(presets.iter().all(|preset| preset.sigma > 0.0));
+
+        for phase_id in ["phase1", "phase2"] {
+            let preset = presets
+                .iter()
+                .find(|preset| preset.id == phase_id)
+                .expect("early phase preset missing");
+            assert!(!preset.ignore_spawns);
+        }
+
+        for phase_id in ["phase4", "phase5", "collectibles"] {
+            let preset = presets
+                .iter()
+                .find(|preset| preset.id == phase_id)
+                .expect("late phase preset missing");
+            assert!(preset.ignore_spawns);
+        }
+    }
+
+    fn test_nodes() -> Vec<ResourceNode> {
+        vec![ResourceNode {
+            resource_type: "iron".to_string(),
+            purity: Purity::Normal,
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+            obstructed: false,
+        }]
+    }
+
+    fn test_request(weights: &[(&str, f64)]) -> OptimizeRequest {
+        OptimizeRequest {
+            utility_func: "cobb_douglas".to_string(),
+            decay_func: "gaussian".to_string(),
+            purity_override: "default".to_string(),
+            strategy: "hybrid".to_string(),
+            game_phase: "phase1".to_string(),
+            sigma: 200.0,
+            ignore_spawns: false,
+            weights: weights
+                .iter()
+                .map(|(resource_id, weight)| (resource_id.to_string(), *weight))
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn validation_rejects_empty_weights() {
+        let nodes = test_nodes();
+        let req = test_request(&[]);
+
+        assert!(validate_optimize_request(&req, &nodes).is_err());
+    }
+
+    #[test]
+    fn validation_rejects_all_zero_weights() {
+        let nodes = test_nodes();
+        let req = test_request(&[("iron", 0.0), ("water", 0.0)]);
+
+        assert!(validate_optimize_request(&req, &nodes).is_err());
+    }
+
+    #[test]
+    fn validation_rejects_unknown_resource_ids() {
+        let nodes = test_nodes();
+        let req = test_request(&[("unknown", 1.0)]);
+
+        assert!(validate_optimize_request(&req, &nodes).is_err());
+    }
+
+    #[test]
+    fn validation_rejects_non_finite_values() {
+        let nodes = test_nodes();
+        let mut req = test_request(&[("iron", 1.0)]);
+        req.sigma = f64::INFINITY;
+        assert!(validate_optimize_request(&req, &nodes).is_err());
+
+        let req = test_request(&[("iron", f64::NAN)]);
+        assert!(validate_optimize_request(&req, &nodes).is_err());
+    }
+
+    #[test]
+    fn validation_accepts_known_resource_ids_and_water() {
+        let nodes = test_nodes();
+        let req = test_request(&[("iron", 1.0), ("water", 0.5)]);
+
+        assert!(validate_optimize_request(&req, &nodes).is_ok());
+    }
+
+    #[test]
+    fn validation_rejects_resource_universe_over_fixed_limit() {
+        let nodes = (0..129)
+            .map(|index| ResourceNode {
+                resource_type: format!("resource{index}"),
+                purity: Purity::Normal,
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+                obstructed: false,
+            })
+            .collect::<Vec<_>>();
+        let req = test_request(&[("resource0", 1.0)]);
+
+        assert!(validate_optimize_request(&req, &nodes).is_err());
+    }
+
+    #[actix_web::test]
+    async fn invalid_optimize_request_returns_bad_request() {
+        let app_state = Arc::new(AppState {
+            nodes: test_nodes(),
+        });
+        let app = actix_test::init_service(
+            App::new()
+                .app_data(web::Data::new(app_state))
+                .route("/api/optimize", web::post().to(post_optimize)),
+        )
+        .await;
+
+        let request = actix_test::TestRequest::post()
+            .uri("/api/optimize")
+            .set_json(serde_json::json!({
+                "utility_func": "cobb_douglas",
+                "decay_func": "gaussian",
+                "purity_override": "default",
+                "strategy": "hybrid",
+                "game_phase": "phase1",
+                "sigma": 200.0,
+                "ignore_spawns": false,
+                "weights": {}
+            }))
+            .to_request();
+        let response = actix_test::call_service(&app, request).await;
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[actix_web::test]
+    async fn valid_optimize_request_returns_ok() {
+        let app_state = Arc::new(AppState {
+            nodes: crate::data_loader::load_default_nodes(),
+        });
+        let app = actix_test::init_service(
+            App::new()
+                .app_data(web::Data::new(app_state))
+                .route("/api/optimize", web::post().to(post_optimize)),
+        )
+        .await;
+
+        let request = actix_test::TestRequest::post()
+            .uri("/api/optimize")
+            .set_json(serde_json::json!({
+                "utility_func": "cobb_douglas",
+                "decay_func": "gaussian",
+                "purity_override": "default",
+                "strategy": "hybrid",
+                "game_phase": "phase1",
+                "sigma": 200.0,
+                "ignore_spawns": false,
+                "weights": {
+                    "iron": 1.0
+                }
+            }))
+            .to_request();
+        let response = actix_test::call_service(&app, request).await;
+
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[actix_web::test]
+    async fn cors_allows_local_dashboard_origin() {
+        let app = actix_test::init_service(
+            App::new()
+                .wrap(local_dashboard_cors())
+                .route("/api/health", web::get().to(get_health)),
+        )
+        .await;
+
+        let request = actix_test::TestRequest::default()
+            .method(Method::OPTIONS)
+            .uri("/api/health")
+            .insert_header((header::ORIGIN, "http://127.0.0.1:3000"))
+            .insert_header((header::ACCESS_CONTROL_REQUEST_METHOD, "GET"))
+            .to_request();
+        let response = actix_test::call_service(&app, request).await;
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.headers().get(header::ACCESS_CONTROL_ALLOW_ORIGIN),
+            Some(&header::HeaderValue::from_static("http://127.0.0.1:3000"))
+        );
+    }
+
+    #[actix_web::test]
+    async fn cors_rejects_arbitrary_browser_origin() {
+        let app = actix_test::init_service(
+            App::new()
+                .wrap(local_dashboard_cors())
+                .route("/api/health", web::get().to(get_health)),
+        )
+        .await;
+
+        let request = actix_test::TestRequest::default()
+            .method(Method::OPTIONS)
+            .uri("/api/health")
+            .insert_header((header::ORIGIN, "https://example.com"))
+            .insert_header((header::ACCESS_CONTROL_REQUEST_METHOD, "GET"))
+            .to_request();
+        let response = actix_test::call_service(&app, request).await;
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(
+            response.headers().get(header::ACCESS_CONTROL_ALLOW_ORIGIN),
+            None
+        );
     }
 }
