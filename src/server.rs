@@ -300,4 +300,43 @@ mod tests {
             assert!(preset.weights.get("waterwell").copied().unwrap_or(0.0) > 0.0);
         }
     }
+
+    #[test]
+    fn presets_keep_phase_contract() {
+        let presets = build_presets();
+        let ids = presets
+            .iter()
+            .map(|preset| preset.id.as_str())
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            ids,
+            [
+                "phase1",
+                "phase2",
+                "phase3",
+                "phase4",
+                "phase5",
+                "collectibles"
+            ]
+        );
+        assert_eq!(presets.len(), 6);
+        assert!(presets.iter().all(|preset| preset.sigma > 0.0));
+
+        for phase_id in ["phase1", "phase2"] {
+            let preset = presets
+                .iter()
+                .find(|preset| preset.id == phase_id)
+                .expect("early phase preset missing");
+            assert!(!preset.ignore_spawns);
+        }
+
+        for phase_id in ["phase4", "phase5", "collectibles"] {
+            let preset = presets
+                .iter()
+                .find(|preset| preset.id == phase_id)
+                .expect("late phase preset missing");
+            assert!(preset.ignore_spawns);
+        }
+    }
 }
