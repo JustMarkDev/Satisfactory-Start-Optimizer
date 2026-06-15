@@ -12,15 +12,6 @@ let PRESETS = {};
 let PRESETS_RAW = [];
 let buildableLandPolygon = [];
 
-const PRESET_SIGMAS = {
-  phase1: 200,
-  phase2: 300,
-  phase3: 400,
-  phase4: 600,
-  phase5: 800,
-  collectibles: 1000,
-};
-
 // App State
 const state = {
   rawNodes: [],
@@ -636,12 +627,13 @@ function applyPhasePreset(phaseId) {
   if (rawPreset) {
     state.config.ignoreSpawns = rawPreset.ignore_spawns;
     els.paramIgnoreSpawns.value = rawPreset.ignore_spawns ? "true" : "false";
+    setWalkingRadius(rawPreset.sigma);
   } else {
     // Fallbacks just in case
     state.config.ignoreSpawns = false;
     els.paramIgnoreSpawns.value = "false";
+    setWalkingRadius(200);
   }
-  setWalkingRadius(PRESET_SIGMAS[phaseId] ?? rawPreset?.sigma ?? 200);
 
   // Redraw weight sliders UI
   renderWeightSliders();

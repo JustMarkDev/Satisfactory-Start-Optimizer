@@ -3,34 +3,23 @@ mod models;
 mod optimizer;
 mod server;
 
-use models::{GamePhase, OptimizerConfig, PurityOverride};
+use models::{OptimizerConfig, PurityOverride};
 use std::collections::HashMap;
 use std::env;
 
 fn apply_preset_weights(preset_idx: usize, weights: &mut HashMap<String, f64>) {
-    weights.clear();
-    match preset_idx {
-        0 => models::GamePhase::Phase1.apply_weights(weights),
-        1 => models::GamePhase::Phase2.apply_weights(weights),
-        2 => models::GamePhase::Phase3.apply_weights(weights),
-        3 => models::GamePhase::Phase4.apply_weights(weights),
-        4 => models::GamePhase::Phase5.apply_weights(weights),
-        5 => apply_collectibles_weights(weights),
-        _ => {}
+    if let Some(preset) = models::all_presets().get(preset_idx) {
+        *weights = preset.build_weights();
     }
 }
 
-fn apply_collectibles_weights(weights: &mut HashMap<String, f64>) {
-    weights.clear();
-    weights.insert("blueslug".to_string(), 0.3);
-    weights.insert("yellowslug".to_string(), 0.8);
-    weights.insert("purpleslug".to_string(), 1.2);
-    weights.insert("mercer".to_string(), 1.0);
-    weights.insert("somersloop".to_string(), 1.0);
-    weights.insert("harddrive".to_string(), 1.5);
-    weights.insert("paleberry".to_string(), 0.0);
-    weights.insert("berylnut".to_string(), 0.0);
-    weights.insert("baconagaric".to_string(), 0.0);
+fn apply_preset_argument(input: &str, config: &mut OptimizerConfig) -> bool {
+    if let Some(preset) = models::preset_by_id_or_phase(input) {
+        models::apply_preset_to_config(preset, config);
+        true
+    } else {
+        false
+    }
 }
 
 fn print_help() {
@@ -80,7 +69,9 @@ fn main() {
 
     let mut custom_file_path: Option<String> = None;
     let mut config = OptimizerConfig::default();
-    GamePhase::Phase1.apply_weights(&mut config.weights);
+    if let Some(preset) = models::preset_by_id_or_phase("phase1") {
+        models::apply_preset_to_config(preset, &mut config);
+    }
 
     let mut output_json = false;
     let mut run_simulation = false;
@@ -197,10 +188,7 @@ fn main() {
             "--tier" | "--phase" => {
                 if i + 1 < args.len() {
                     let phase_str = &args[i + 1];
-                    if let Some(phase) = GamePhase::from_str(phase_str) {
-                        phase.apply_weights(&mut config.weights);
-                        config.game_phase = phase;
-                    } else {
+                    if !apply_preset_argument(phase_str, &mut config) {
                         eprintln!("Error: Invalid phase/tier value '{}'.", phase_str);
                         return;
                     }
@@ -211,8 +199,7 @@ fn main() {
                 }
             }
             "--collectibles" => {
-                apply_collectibles_weights(&mut config.weights);
-                config.game_phase = GamePhase::Phase5;
+                apply_preset_argument("collectibles", &mut config);
                 i += 1;
             }
             "--ignore-spawns" | "--ignore-starting-areas" => {
@@ -312,7 +299,7 @@ fn run_full_simulation_matrix(nodes: &[models::ResourceNode]) {
     }
 
     let mut sim_configs = Vec::new();
-    let presets = 0..6;
+    let presets = 0..models::all_presets().len();
     let purities = [
         PurityOverride::Default,
         PurityOverride::Normal,
@@ -330,18 +317,18 @@ fn run_full_simulation_matrix(nodes: &[models::ResourceNode]) {
         models::DistanceDecay::Linear,
         models::DistanceDecay::LogisticStep,
     ];
-    let sigma = 700.0;
 
     for preset_idx in presets {
         for &purity in &purities {
             for &utility in &utilities {
                 for &decay in &decays {
+                    let preset = models::all_presets()[preset_idx];
                     sim_configs.push(SimConfig {
                         preset_idx,
                         purity,
                         utility,
                         decay,
-                        sigma,
+                        sigma: preset.sigma,
                     });
                 }
             }
@@ -355,6 +342,7 @@ fn run_full_simulation_matrix(nodes: &[models::ResourceNode]) {
     let results: Vec<(SimConfig, optimizer::OptimizationResult)> = sim_configs
         .into_iter()
         .map(|config| {
+            let preset = models::all_presets()[config.preset_idx];
             let mut opt_config = OptimizerConfig {
                 sigma: config.sigma,
                 weights: HashMap::new(),
@@ -362,14 +350,7 @@ fn run_full_simulation_matrix(nodes: &[models::ResourceNode]) {
                 strategy: models::SearchStrategy::Hybrid,
                 utility_func: config.utility,
                 decay_func: config.decay,
-                game_phase: match config.preset_idx {
-                    0 => models::GamePhase::Phase1,
-                    1 => models::GamePhase::Phase2,
-                    2 => models::GamePhase::Phase3,
-                    3 => models::GamePhase::Phase4,
-                    4 => models::GamePhase::Phase5,
-                    _ => models::GamePhase::Phase1,
-                },
+                game_phase: preset.phase,
                 ignore_spawns: true,
             };
             apply_preset_weights(config.preset_idx, &mut opt_config.weights);
@@ -424,4 +405,33 @@ fn run_full_simulation_matrix(nodes: &[models::ResourceNode]) {
         results.len(),
         csv_path
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cli_phase_preset_application_sets_radius_and_spawn_behavior() {
+        let mut phase1_config = OptimizerConfig::default();
+        assert!(apply_preset_argument("phase1", &mut phase1_config));
+        assert_eq!(phase1_config.sigma, 200.0);
+        assert!(!phase1_config.ignore_spawns);
+
+        let mut phase4_config = OptimizerConfig::default();
+        assert!(apply_preset_argument("phase4", &mut phase4_config));
+        assert_eq!(phase4_config.sigma, 600.0);
+        assert!(phase4_config.ignore_spawns);
+    }
+
+    #[test]
+    fn cli_collectibles_preset_application_uses_shared_weights() {
+        let mut config = OptimizerConfig::default();
+        assert!(apply_preset_argument("collectibles", &mut config));
+
+        assert_eq!(config.sigma, 1000.0);
+        assert!(config.ignore_spawns);
+        assert_eq!(config.weights.get("blueslug").copied(), Some(0.3));
+        assert_eq!(config.weights.get("harddrive").copied(), Some(1.5));
+    }
 }
