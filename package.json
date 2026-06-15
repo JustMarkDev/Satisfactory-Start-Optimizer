@@ -11,6 +11,7 @@
     "server:release": "cargo run --release -- --server 8080",
     "build": "vp build",
     "check": "vp check",
+    "test": "bun test",
     "check:fix": "vp check --fix",
     "pack": "vp pack src/app.js --from-vite --out-dir dist/pack",
     "preview": "vp preview",
