@@ -3,6 +3,7 @@
 //! Endpoints:
 //!   GET  /api/presets        → returns all phase presets with weights
 //!   GET  /api/spawns         → returns all default spawn locations
+//!   GET  /api/nodes          → returns normalized map nodes for rendering
 //!   POST /api/optimize       → accepts OptimizerRequest JSON, returns top-3 OptimizationResult[]
 
 use actix_cors::Cors;
@@ -48,6 +49,19 @@ pub struct PresetResponse {
     pub sigma: f64,
     pub ignore_spawns: bool,
     pub weights: HashMap<String, f64>,
+}
+
+/// GET /api/nodes response item
+#[derive(Debug, Serialize, PartialEq)]
+pub struct NodeResponse {
+    pub resource_type: String,
+    pub x: f64,
+    pub y: f64,
+    pub z: f64,
+    pub purity: crate::models::Purity,
+    #[serde(rename = "purityMultiplier")]
+    pub purity_multiplier: f64,
+    pub obstructed: bool,
 }
 
 /// Shared application state (the parsed map nodes loaded at startup)
@@ -238,6 +252,23 @@ async fn get_spawns() -> impl Responder {
     HttpResponse::Ok().json(DEFAULT_SPAWNS)
 }
 
+fn node_response(node: &ResourceNode) -> NodeResponse {
+    NodeResponse {
+        resource_type: node.resource_type.clone(),
+        x: node.x,
+        y: node.y,
+        z: node.z,
+        purity: node.purity,
+        purity_multiplier: node.purity.multiplier(),
+        obstructed: node.obstructed,
+    }
+}
+
+async fn get_nodes(state: web::Data<Arc<AppState>>) -> impl Responder {
+    let nodes = state.nodes.iter().map(node_response).collect::<Vec<_>>();
+    HttpResponse::Ok().json(nodes)
+}
+
 async fn post_optimize(
     state: web::Data<Arc<AppState>>,
     body: web::Json<OptimizeRequest>,
@@ -295,6 +326,7 @@ pub async fn run_server(port: u16) -> std::io::Result<()> {
     println!("  POST /api/optimize  — run optimization");
     println!("  GET  /api/presets   — get phase presets");
     println!("  GET  /api/spawns    — get spawn locations");
+    println!("  GET  /api/nodes     — get normalized map nodes");
     println!("  GET  /api/health    — health check");
 
     let data = Arc::new(AppState { nodes });
@@ -315,6 +347,7 @@ pub async fn run_server(port: u16) -> std::io::Result<()> {
             .route("/api/health", web::get().to(get_health))
             .route("/api/presets", web::get().to(get_presets))
             .route("/api/spawns", web::get().to(get_spawns))
+            .route("/api/nodes", web::get().to(get_nodes))
             .route("/api/optimize", web::post().to(post_optimize))
     })
     .bind(("127.0.0.1", port))?
@@ -414,6 +447,58 @@ mod tests {
             z: 0.0,
             obstructed: false,
         }]
+    }
+
+    #[test]
+    fn node_response_contains_normalized_rendering_fields() {
+        let node = ResourceNode {
+            resource_type: "copper".to_string(),
+            purity: Purity::Pure,
+            x: 123.5,
+            y: -456.25,
+            z: 78.0,
+            obstructed: true,
+        };
+
+        let response = node_response(&node);
+        let json = serde_json::to_value(response).expect("node response should serialize");
+
+        assert_eq!(json["resource_type"], "copper");
+        assert_eq!(json["x"], 123.5);
+        assert_eq!(json["y"], -456.25);
+        assert_eq!(json["z"], 78.0);
+        assert_eq!(json["purity"], "pure");
+        assert_eq!(json["purityMultiplier"], 2.0);
+        assert_eq!(json["obstructed"], true);
+    }
+
+    #[actix_web::test]
+    async fn nodes_endpoint_returns_normalized_nodes() {
+        let app_state = Arc::new(AppState {
+            nodes: vec![ResourceNode {
+                resource_type: "iron".to_string(),
+                purity: Purity::Impure,
+                x: 1.0,
+                y: 2.0,
+                z: 3.0,
+                obstructed: false,
+            }],
+        });
+        let app = actix_test::init_service(
+            App::new()
+                .app_data(web::Data::new(app_state))
+                .route("/api/nodes", web::get().to(get_nodes)),
+        )
+        .await;
+
+        let request = actix_test::TestRequest::get()
+            .uri("/api/nodes")
+            .to_request();
+        let body: serde_json::Value = actix_test::call_and_read_body_json(&app, request).await;
+
+        assert_eq!(body[0]["resource_type"], "iron");
+        assert_eq!(body[0]["purity"], "impure");
+        assert_eq!(body[0]["purityMultiplier"], 0.5);
     }
 
     fn test_request(weights: &[(&str, f64)]) -> OptimizeRequest {
