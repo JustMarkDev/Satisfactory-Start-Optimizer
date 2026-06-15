@@ -1,7 +1,18 @@
 // FICSIT Starting Position Optimizer
 // Web Dashboard Logic
 
-import { hasOptimizationObjective, nonZeroWeights, RESOURCES } from "./mapContracts.js";
+import {
+  countObstructedNodes,
+  formatDiversity,
+  formatRuggedness,
+  formatYield,
+  hasOptimizationObjective,
+  nearbyWeightedNodes,
+  nodeInspectionKey,
+  nonZeroWeights,
+  RESOURCES,
+  topResourceYields,
+} from "./mapContracts.js";
 
 const LAND_MASK_SECTORS = 128;
 const LAND_MASK_BUFFER_CM = 22000;
@@ -59,6 +70,14 @@ function gameToPixel(gx, gy) {
   const px = 571.321 + gx * 0.0013653321;
   const py = 640.0 + gy * 0.0013653333;
   return { x: px, y: py };
+}
+
+function formatContribution(value) {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) return "0.00";
+
+  const formatted = formatYield(numericValue);
+  return numericValue > 0 ? `+${formatted}` : formatted;
 }
 
 function computeBuildableLandPolygon(nodes) {
@@ -194,6 +213,17 @@ function renderMapOverlay() {
   const activeKeys = Object.keys(state.config.weights).filter(
     (k) => Math.abs(state.config.weights[k]) > 0,
   );
+  const selectedResult = state.results[state.selectedResultIdx];
+  const inspectionRows = selectedResult
+    ? nearbyWeightedNodes(
+        state.rawNodes,
+        selectedResult,
+        state.config.weights,
+        state.config.sigma,
+        Number.POSITIVE_INFINITY,
+      )
+    : [];
+  const inspectedNodeKeys = new Set(inspectionRows.map((row) => row.key));
 
   // 1. Draw Resource Nodes (if layer visible)
   if (state.visibleLayers.nodes && state.rawNodes.length > 0) {
@@ -213,7 +243,15 @@ function renderMapOverlay() {
       circle.setAttribute("fill", res.color);
       circle.setAttribute("stroke", "#06090e");
       circle.setAttribute("stroke-width", "0.5");
-      circle.setAttribute("class", "node-marker");
+      const classes = ["node-marker"];
+      if (selectedResult) {
+        if (inspectedNodeKeys.has(nodeInspectionKey(node))) {
+          classes.push("inspected-node");
+        } else {
+          classes.push("dimmed-node");
+        }
+      }
+      circle.setAttribute("class", classes.join(" "));
 
       // Node description tooltip content
       const purityStr =
@@ -265,6 +303,17 @@ function renderMapOverlay() {
     borderPoly.setAttribute("stroke-dasharray", "6 4");
     borderPoly.style.pointerEvents = "none";
     svg.appendChild(borderPoly);
+  }
+
+  if (selectedResult) {
+    const pix = gameToPixel(selectedResult.x, selectedResult.y);
+    const radiusCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    radiusCircle.setAttribute("cx", pix.x);
+    radiusCircle.setAttribute("cy", pix.y);
+    radiusCircle.setAttribute("r", state.config.sigma * 0.13653321);
+    radiusCircle.setAttribute("class", "inspection-radius");
+    radiusCircle.style.pointerEvents = "none";
+    svg.appendChild(radiusCircle);
   }
 
   // 2. Draw Start Spawn Pod locations (S) and starting area circles
@@ -449,6 +498,10 @@ function renderResultsPanel() {
       nodeItems.push(`${res.local_nodes[label]}x ${label}`);
     }
     const nodesSummary = nodeItems.slice(0, 4).join(", ") + (nodeItems.length > 4 ? "..." : "");
+    const yields = topResourceYields(res.resource_yields || {}, 4);
+    const ruggedness = Number.isFinite(res.terrain_ruggedness) ? res.terrain_ruggedness : 0;
+    const diversity = Number.isFinite(res.diversity_score) ? res.diversity_score : 0;
+    const obstructedCount = countObstructedNodes(res.obstructed_nodes);
 
     card.innerHTML = `
       <div class="result-card-title">
@@ -461,7 +514,125 @@ function renderResultsPanel() {
       <div class="result-card-details">
         <strong>Nodes in range (${state.config.sigma}m):</strong> ${nodesSummary || "None"}
       </div>
+      <div class="result-metrics">
+        <div class="result-metric">
+          <span>Terrain</span>
+          <strong>${formatRuggedness(ruggedness)}</strong>
+        </div>
+        <div class="result-metric">
+          <span>Diversity</span>
+          <strong>${formatDiversity(diversity)}</strong>
+        </div>
+      </div>
     `;
+
+    const yieldStrip = document.createElement("div");
+    yieldStrip.className = "yield-strip";
+    const yieldLabel = document.createElement("span");
+    yieldLabel.className = "yield-label";
+    yieldLabel.textContent = "Top yields";
+    yieldStrip.appendChild(yieldLabel);
+
+    if (yields.length > 0) {
+      yields.forEach((resourceYield) => {
+        const pill = document.createElement("span");
+        pill.className = "yield-pill";
+
+        const dot = document.createElement("span");
+        dot.className = "yield-dot";
+        dot.style.backgroundColor = resourceYield.color;
+        pill.appendChild(dot);
+
+        const name = document.createElement("span");
+        name.textContent = resourceYield.name;
+        pill.appendChild(name);
+
+        const value = document.createElement("strong");
+        value.textContent = formatYield(resourceYield.value);
+        pill.appendChild(value);
+
+        yieldStrip.appendChild(pill);
+      });
+    } else {
+      const empty = document.createElement("span");
+      empty.className = "yield-empty";
+      empty.textContent = "None";
+      yieldStrip.appendChild(empty);
+    }
+
+    card.appendChild(yieldStrip);
+
+    if (isSelected) {
+      const inspectionRows = nearbyWeightedNodes(
+        state.rawNodes,
+        res,
+        state.config.weights,
+        state.config.sigma,
+        8,
+      );
+      const inspectionList = document.createElement("div");
+      inspectionList.className = "inspection-list";
+
+      const inspectionLabel = document.createElement("span");
+      inspectionLabel.className = "yield-label";
+      inspectionLabel.textContent = "Nearby contributors";
+      inspectionList.appendChild(inspectionLabel);
+
+      if (inspectionRows.length > 0) {
+        inspectionRows.forEach((row) => {
+          const item = document.createElement("div");
+          item.className = "inspection-row";
+
+          const dot = document.createElement("span");
+          dot.className = "yield-dot";
+          dot.style.backgroundColor = row.color;
+          item.appendChild(dot);
+
+          const body = document.createElement("div");
+          body.className = "inspection-row-body";
+
+          const title = document.createElement("span");
+          title.className = "inspection-row-title";
+          title.textContent = row.name;
+          body.appendChild(title);
+
+          const meta = document.createElement("span");
+          meta.className = "inspection-row-meta";
+          meta.textContent = `${row.purity} - ${Math.round(row.distance)}m`;
+          body.appendChild(meta);
+
+          item.appendChild(body);
+
+          const contribution = document.createElement("strong");
+          contribution.className = "inspection-contribution";
+          contribution.textContent = formatContribution(row.contribution);
+          item.appendChild(contribution);
+
+          if (row.obstructed) {
+            const badge = document.createElement("span");
+            badge.className = "inspection-badge";
+            badge.textContent = "Obstructed";
+            item.appendChild(badge);
+          }
+
+          inspectionList.appendChild(item);
+        });
+      } else {
+        const empty = document.createElement("span");
+        empty.className = "yield-empty";
+        empty.textContent = "None";
+        inspectionList.appendChild(empty);
+      }
+
+      card.appendChild(inspectionList);
+    }
+
+    if (obstructedCount > 0) {
+      const obstructedNote = document.createElement("div");
+      obstructedNote.className = "obstructed-note";
+      obstructedNote.textContent = `${obstructedCount} obstructed node${obstructedCount === 1 ? "" : "s"} excluded`;
+      card.appendChild(obstructedNote);
+    }
 
     card.addEventListener("click", () => {
       selectResult(idx);

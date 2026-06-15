@@ -52,10 +52,145 @@ export function parsePurityMultiplier(purity) {
   return 1.0;
 }
 
+export function distanceMeters(a, b) {
+  const dx = Number(a?.x) - Number(b?.x);
+  const dy = Number(a?.y) - Number(b?.y);
+  if (!Number.isFinite(dx) || !Number.isFinite(dy)) return Number.POSITIVE_INFINITY;
+
+  return Math.sqrt(dx * dx + dy * dy) / 100;
+}
+
+export function effectiveNodeYield(node) {
+  const explicitMultiplier = Number(node?.purityMultiplier);
+  if (Number.isFinite(explicitMultiplier)) return explicitMultiplier;
+
+  return parsePurityMultiplier(node?.purity);
+}
+
+export function nodeInspectionKey(node) {
+  return `${node?.resource_type}:${node?.x}:${node?.y}:${node?.z ?? ""}`;
+}
+
+export function purityLabel(node) {
+  const yieldValue = effectiveNodeYield(node);
+  if (yieldValue > 1.5) return "Pure";
+  if (yieldValue < 0.8) return "Impure";
+  return "Normal";
+}
+
 export function nonZeroWeights(weights) {
   return Object.fromEntries(Object.entries(weights).filter(([_, value]) => value !== 0));
 }
 
 export function hasOptimizationObjective(weights) {
   return Object.keys(nonZeroWeights(weights)).length > 0;
+}
+
+export function resourceMeta(resourceId) {
+  return (
+    RESOURCES.find((resource) => resource.id === resourceId) || {
+      id: resourceId,
+      name: resourceId,
+      color: "#9aa0a6",
+      category: "unknown",
+    }
+  );
+}
+
+export function nearbyWeightedNodes(rawNodes, selectedResult, weights, sigma, limit = 8) {
+  if (!Array.isArray(rawNodes) || !selectedResult || !weights || typeof weights !== "object") {
+    return [];
+  }
+
+  const radiusMeters = Number(sigma);
+  if (!Number.isFinite(radiusMeters) || radiusMeters < 0) return [];
+
+  const maxRows = Number.isFinite(limit)
+    ? Math.max(0, Math.floor(limit))
+    : Number.POSITIVE_INFINITY;
+
+  return rawNodes
+    .map((node) => {
+      const resourceId = node?.resource_type;
+      const weight = Number(weights[resourceId] || 0);
+      if (weight === 0) return null;
+
+      const distance = distanceMeters(node, selectedResult);
+      if (!Number.isFinite(distance) || distance > radiusMeters) return null;
+
+      const yieldValue = effectiveNodeYield(node);
+      const contribution = weight * yieldValue;
+      const meta = resourceMeta(resourceId);
+
+      return {
+        key: nodeInspectionKey(node),
+        id: resourceId,
+        resourceId,
+        name: meta.name,
+        color: meta.color,
+        category: meta.category,
+        distance,
+        purity: purityLabel(node),
+        yield: yieldValue,
+        obstructed: Boolean(node?.obstructed),
+        contribution,
+      };
+    })
+    .filter(Boolean)
+    .sort(
+      (a, b) =>
+        b.contribution - a.contribution || a.distance - b.distance || a.id.localeCompare(b.id),
+    )
+    .slice(0, maxRows);
+}
+
+export function formatYield(value) {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) return "0.00";
+
+  return Math.abs(numericValue) < 10 ? numericValue.toFixed(2) : numericValue.toFixed(1);
+}
+
+export function topResourceYields(resourceYields = {}, limit = 4) {
+  if (!resourceYields || typeof resourceYields !== "object") return [];
+
+  return Object.entries(resourceYields)
+    .map(([id, value]) => ({ id, value: Number(value) }))
+    .filter((yieldEntry) => Number.isFinite(yieldEntry.value) && yieldEntry.value > 0)
+    .sort((a, b) => b.value - a.value || a.id.localeCompare(b.id))
+    .slice(0, limit)
+    .map(({ id, value }) => {
+      const meta = resourceMeta(id);
+      return {
+        id,
+        name: meta.name,
+        color: meta.color,
+        value,
+      };
+    });
+}
+
+export function countObstructedNodes(obstructedNodes = {}) {
+  if (!obstructedNodes || typeof obstructedNodes !== "object") return 0;
+
+  if (Array.isArray(obstructedNodes)) return obstructedNodes.length;
+
+  return Object.values(obstructedNodes).reduce((total, count) => {
+    const numericCount = Number(count);
+    return Number.isFinite(numericCount) && numericCount > 0 ? total + numericCount : total;
+  }, 0);
+}
+
+export function formatRuggedness(value) {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) return "0.0m";
+
+  return `${numericValue.toFixed(1)}m`;
+}
+
+export function formatDiversity(value) {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) return "0.00";
+
+  return numericValue.toFixed(2);
 }
