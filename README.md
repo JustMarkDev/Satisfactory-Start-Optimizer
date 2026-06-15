@@ -136,8 +136,9 @@ The web dashboard provides an interactive satellite/in-game map overlay with rea
 3. **Optional commands**:
 
    ```bash
-   bun run server # backend only
-   bun run ui     # frontend only
+   bun run server         # backend only, debug/dev mode
+   bun run server:release # backend only, optimized release mode
+   bun run ui             # frontend only; expects the backend to be running
    ```
 
 4. **Optional Vite+ maintenance commands**:

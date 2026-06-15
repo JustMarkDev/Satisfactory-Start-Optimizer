@@ -72,7 +72,7 @@ process.on("SIGINT", () => shutdown(0));
 process.on("SIGTERM", () => shutdown(0));
 
 console.log("[dev] Starting Rust API server on http://127.0.0.1:8080");
-spawnProcess("server", "cargo", ["run", "--release", "--", "--server", "8080"]);
+spawnProcess("server", "cargo", ["run", "--", "--server", "8080"]);
 
 const serverReady = await waitForServer("http://127.0.0.1:8080/api/health");
 if (!serverReady) {
