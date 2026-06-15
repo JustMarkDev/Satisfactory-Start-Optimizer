@@ -73,53 +73,78 @@ pub struct AppState {
 // Helper parsers
 // ---------------------------------------------------------------------------
 
-fn parse_utility(s: &str) -> UtilityFunction {
+fn parse_utility(s: &str) -> Result<UtilityFunction, String> {
     match s {
-        "leontief" => UtilityFunction::Leontief,
-        "linear" => UtilityFunction::Linear,
-        _ => UtilityFunction::CobbDouglas,
+        "cobb_douglas" => Ok(UtilityFunction::CobbDouglas),
+        "leontief" => Ok(UtilityFunction::Leontief),
+        "linear" => Ok(UtilityFunction::Linear),
+        _ => Err("Invalid optimize request: unknown utility function".to_string()),
     }
 }
 
-fn parse_decay(s: &str) -> DistanceDecay {
+fn parse_decay(s: &str) -> Result<DistanceDecay, String> {
     match s {
-        "exponential" => DistanceDecay::Exponential,
-        "power_law" => DistanceDecay::PowerLaw,
-        "linear" => DistanceDecay::Linear,
-        "logistic" => DistanceDecay::LogisticStep,
-        _ => DistanceDecay::Gaussian,
+        "gaussian" => Ok(DistanceDecay::Gaussian),
+        "exponential" => Ok(DistanceDecay::Exponential),
+        "power_law" => Ok(DistanceDecay::PowerLaw),
+        "linear" => Ok(DistanceDecay::Linear),
+        "logistic" => Ok(DistanceDecay::LogisticStep),
+        _ => Err("Invalid optimize request: unknown decay function".to_string()),
     }
 }
 
-fn parse_purity(s: &str) -> PurityOverride {
+fn parse_purity(s: &str) -> Result<PurityOverride, String> {
     match s {
-        "impure" => PurityOverride::Impure,
-        "normal" => PurityOverride::Normal,
-        "pure" => PurityOverride::Pure,
-        _ => PurityOverride::Default,
+        "default" => Ok(PurityOverride::Default),
+        "impure" => Ok(PurityOverride::Impure),
+        "normal" => Ok(PurityOverride::Normal),
+        "pure" => Ok(PurityOverride::Pure),
+        _ => Err("Invalid optimize request: unknown purity override".to_string()),
     }
 }
 
-fn parse_strategy(s: &str) -> SearchStrategy {
+fn parse_strategy(s: &str) -> Result<SearchStrategy, String> {
     match s {
-        "fast" => SearchStrategy::Fast,
-        "slow" => SearchStrategy::Slow,
-        _ => SearchStrategy::Hybrid,
+        "hybrid" => Ok(SearchStrategy::Hybrid),
+        "fast" => Ok(SearchStrategy::Fast),
+        "slow" => Ok(SearchStrategy::Slow),
+        _ => Err("Invalid optimize request: unknown search strategy".to_string()),
     }
 }
 
-fn parse_phase(s: &str) -> GamePhase {
+fn parse_phase(s: &str) -> Result<GamePhase, String> {
     match s {
-        "phase2" => GamePhase::Phase2,
-        "phase3" => GamePhase::Phase3,
-        "phase4" => GamePhase::Phase4,
-        "phase5" => GamePhase::Phase5,
-        "collectibles" => GamePhase::Phase5,
-        _ => GamePhase::Phase1,
+        "phase1" => Ok(GamePhase::Phase1),
+        "phase2" => Ok(GamePhase::Phase2),
+        "phase3" => Ok(GamePhase::Phase3),
+        "phase4" => Ok(GamePhase::Phase4),
+        "phase5" => Ok(GamePhase::Phase5),
+        "collectibles" => Ok(GamePhase::Phase5),
+        _ => Err("Invalid optimize request: unknown game phase".to_string()),
     }
+}
+
+struct ParsedOptimizeRequest {
+    utility_func: UtilityFunction,
+    decay_func: DistanceDecay,
+    purity_override: PurityOverride,
+    strategy: SearchStrategy,
+    game_phase: GamePhase,
+}
+
+fn parse_optimize_request(req: &OptimizeRequest) -> Result<ParsedOptimizeRequest, String> {
+    Ok(ParsedOptimizeRequest {
+        utility_func: parse_utility(&req.utility_func)?,
+        decay_func: parse_decay(&req.decay_func)?,
+        purity_override: parse_purity(&req.purity_override)?,
+        strategy: parse_strategy(&req.strategy)?,
+        game_phase: parse_phase(&req.game_phase)?,
+    })
 }
 
 fn validate_optimize_request(req: &OptimizeRequest, nodes: &[ResourceNode]) -> Result<(), String> {
+    parse_optimize_request(req)?;
+
     if !req.sigma.is_finite() {
         return Err("Invalid optimize request: sigma must be finite".to_string());
     }
@@ -229,16 +254,20 @@ async fn post_optimize(
     if let Err(message) = validate_optimize_request(&req, &state.nodes) {
         return HttpResponse::BadRequest().body(message);
     }
+    let parsed = match parse_optimize_request(&req) {
+        Ok(parsed) => parsed,
+        Err(message) => return HttpResponse::BadRequest().body(message),
+    };
 
     // Build OptimizerConfig from request
     let mut config = OptimizerConfig {
         sigma: req.sigma.clamp(50.0, 1000.0),
         weights: req.weights.clone(),
-        purity_override: parse_purity(&req.purity_override),
-        strategy: parse_strategy(&req.strategy),
-        utility_func: parse_utility(&req.utility_func),
-        decay_func: parse_decay(&req.decay_func),
-        game_phase: parse_phase(&req.game_phase),
+        purity_override: parsed.purity_override,
+        strategy: parsed.strategy,
+        utility_func: parsed.utility_func,
+        decay_func: parsed.decay_func,
+        game_phase: parsed.game_phase,
         ignore_spawns: req.ignore_spawns,
     };
 
@@ -530,6 +559,108 @@ mod tests {
     }
 
     #[test]
+    fn validation_rejects_unknown_utility_func() {
+        let nodes = test_nodes();
+        let mut req = test_request(&[("iron", 1.0)]);
+        req.utility_func = "weighted_sum".to_string();
+
+        assert_eq!(
+            validate_optimize_request(&req, &nodes),
+            Err("Invalid optimize request: unknown utility function".to_string())
+        );
+    }
+
+    #[test]
+    fn validation_rejects_unknown_decay_func() {
+        let nodes = test_nodes();
+        let mut req = test_request(&[("iron", 1.0)]);
+        req.decay_func = "inverse_square".to_string();
+
+        assert_eq!(
+            validate_optimize_request(&req, &nodes),
+            Err("Invalid optimize request: unknown decay function".to_string())
+        );
+    }
+
+    #[test]
+    fn validation_rejects_unknown_purity_override() {
+        let nodes = test_nodes();
+        let mut req = test_request(&[("iron", 1.0)]);
+        req.purity_override = "mixed".to_string();
+
+        assert_eq!(
+            validate_optimize_request(&req, &nodes),
+            Err("Invalid optimize request: unknown purity override".to_string())
+        );
+    }
+
+    #[test]
+    fn validation_rejects_unknown_strategy() {
+        let nodes = test_nodes();
+        let mut req = test_request(&[("iron", 1.0)]);
+        req.strategy = "medium".to_string();
+
+        assert_eq!(
+            validate_optimize_request(&req, &nodes),
+            Err("Invalid optimize request: unknown search strategy".to_string())
+        );
+    }
+
+    #[test]
+    fn validation_rejects_unknown_game_phase() {
+        let nodes = test_nodes();
+        let mut req = test_request(&[("iron", 1.0)]);
+        req.game_phase = "phase6".to_string();
+
+        assert_eq!(
+            validate_optimize_request(&req, &nodes),
+            Err("Invalid optimize request: unknown game phase".to_string())
+        );
+    }
+
+    #[test]
+    fn validation_accepts_current_ui_enum_values() {
+        let nodes = test_nodes();
+
+        for utility_func in ["cobb_douglas", "leontief", "linear"] {
+            let mut req = test_request(&[("iron", 1.0)]);
+            req.utility_func = utility_func.to_string();
+            assert!(validate_optimize_request(&req, &nodes).is_ok());
+        }
+
+        for decay_func in ["gaussian", "exponential", "power_law", "linear", "logistic"] {
+            let mut req = test_request(&[("iron", 1.0)]);
+            req.decay_func = decay_func.to_string();
+            assert!(validate_optimize_request(&req, &nodes).is_ok());
+        }
+
+        for purity_override in ["default", "impure", "normal", "pure"] {
+            let mut req = test_request(&[("iron", 1.0)]);
+            req.purity_override = purity_override.to_string();
+            assert!(validate_optimize_request(&req, &nodes).is_ok());
+        }
+
+        for strategy in ["hybrid", "fast", "slow"] {
+            let mut req = test_request(&[("iron", 1.0)]);
+            req.strategy = strategy.to_string();
+            assert!(validate_optimize_request(&req, &nodes).is_ok());
+        }
+
+        for game_phase in [
+            "phase1",
+            "phase2",
+            "phase3",
+            "phase4",
+            "phase5",
+            "collectibles",
+        ] {
+            let mut req = test_request(&[("iron", 1.0)]);
+            req.game_phase = game_phase.to_string();
+            assert!(validate_optimize_request(&req, &nodes).is_ok());
+        }
+    }
+
+    #[test]
     fn validation_rejects_resource_universe_over_fixed_limit() {
         let nodes = (0..129)
             .map(|index| ResourceNode {
@@ -569,6 +700,38 @@ mod tests {
                 "sigma": 200.0,
                 "ignore_spawns": false,
                 "weights": {}
+            }))
+            .to_request();
+        let response = actix_test::call_service(&app, request).await;
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[actix_web::test]
+    async fn invalid_optimize_enum_request_returns_bad_request() {
+        let app_state = Arc::new(AppState {
+            nodes: test_nodes(),
+        });
+        let app = actix_test::init_service(
+            App::new()
+                .app_data(web::Data::new(app_state))
+                .route("/api/optimize", web::post().to(post_optimize)),
+        )
+        .await;
+
+        let request = actix_test::TestRequest::post()
+            .uri("/api/optimize")
+            .set_json(serde_json::json!({
+                "utility_func": "cobb_douglas",
+                "decay_func": "inverse_square",
+                "purity_override": "default",
+                "strategy": "hybrid",
+                "game_phase": "phase1",
+                "sigma": 200.0,
+                "ignore_spawns": false,
+                "weights": {
+                    "iron": 1.0
+                }
             }))
             .to_request();
         let response = actix_test::call_service(&app, request).await;
